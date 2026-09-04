@@ -6,33 +6,28 @@ on:
   pull_request:
     branches: [main]
 
-env:
-  PYTHON_VERSION: "3.12"
-  NODE_VERSION: "20"
-  POSTGRES_USER: postgres
-  POSTGRES_PASSWORD: postgres
-  POSTGRES_DB: vendo_ai
-
 jobs:
   backend-tests:
-    name: Backend Tests (Python ${{ env.PYTHON_VERSION }})
+    name: Backend Tests (Python 3.12)
     runs-on: ubuntu-latest
     services:
       postgres:
         image: postgres:16-alpine
         env:
-          POSTGRES_USER: ${{ env.POSTGRES_USER }}
-          POSTGRES_PASSWORD: ${{ env.POSTGRES_PASSWORD }}
-          POSTGRES_DB: ${{ env.POSTGRES_DB }}
-        ports: 5432:5432
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: vendo_ai
+        ports:
+          - 5432:5432
         options: >-
-          --health-cmd "pg_isready -U ${{ env.POSTGRES_USER }} -d ${{ env.POSTGRES_DB }}"
+          --health-cmd "pg_isready -U postgres -d vendo_ai"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
       redis:
         image: redis:7-alpine
-        ports: 6379:6379
+        ports:
+          - 6379:6379
         options: >-
           --health-cmd "redis-cli ping"
           --health-interval 10s
@@ -46,42 +41,46 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: ${{ env.PYTHON_VERSION }}
+          python-version: "3.12"
 
       - name: Install uv
         run: pip install uv
 
       - name: Install dependencies
         run: |
-          cd apps/api
-          uv pip install -e ".[dev]"
+          uv pip install --system -e ".[dev]"
 
       - name: Run database migrations
         run: |
-          cd apps/api
-          DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:5432/vendo_ai \
-          DATABASE_URL_SYNC=postgresql://postgres:postgres@localhost:5432/vendo_ai \
           alembic upgrade head
+        env:
+          DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/vendo_ai
+          DATABASE_URL_SYNC: postgresql://postgres:postgres@localhost:5432/vendo_ai
 
       - name: Seed database
         run: |
-          cd apps/api
-          python ../../scripts/generate_business_data.py
+          python scripts/generate_business_data.py
+        env:
+          DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/vendo_ai
+          DATABASE_URL_SYNC: postgresql://postgres:postgres@localhost:5432/vendo_ai
 
       - name: Run linting (ruff)
         run: |
-          cd apps/api
-          ruff check .
+          ruff check apps/api tests
 
       - name: Run backend tests
         run: |
-          cd apps/api
           python -m pytest tests/backend/test_core_logic.py -v
+        env:
+          DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/vendo_ai
+          DATABASE_URL_SYNC: postgresql://postgres:postgres@localhost:5432/vendo_ai
 
       - name: Validate data integrity
         run: |
-          cd apps/api
-          python ../../scripts/validate_data.py
+          python scripts/validate_data.py
+        env:
+          DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/vendo_ai
+          DATABASE_URL_SYNC: postgresql://postgres:postgres@localhost:5432/vendo_ai
 
   frontend-tests:
     name: Frontend Build & Lint
@@ -94,8 +93,8 @@ jobs:
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
+          node-version: "20"
+          cache: "npm"
           cache-dependency-path: apps/web/package-lock.json
 
       - name: Install dependencies
@@ -124,18 +123,20 @@ jobs:
       postgres:
         image: postgres:16-alpine
         env:
-          POSTGRES_USER: ${{ env.POSTGRES_USER }}
-          POSTGRES_PASSWORD: ${{ env.POSTGRES_PASSWORD }}
-          POSTGRES_DB: ${{ env.POSTGRES_DB }}
-        ports: 5432:5432
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: vendo_ai
+        ports:
+          - 5432:5432
         options: >-
-          --health-cmd "pg_isready -U ${{ env.POSTGRES_USER }} -d ${{ env.POSTGRES_DB }}"
+          --health-cmd "pg_isready -U postgres -d vendo_ai"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
       redis:
         image: redis:7-alpine
-        ports: 6379:6379
+        ports:
+          - 6379:6379
         options: >-
           --health-cmd "redis-cli ping"
           --health-interval 10s
@@ -149,20 +150,19 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: ${{ env.PYTHON_VERSION }}
+          python-version: "3.12"
 
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
-          node-version: ${{ env.NODE_VERSION }}
+          node-version: "20"
 
       - name: Install uv
         run: pip install uv
 
       - name: Install backend deps
         run: |
-          cd apps/api
-          uv pip install -e ".[dev]"
+          uv pip install --system -e ".[dev]"
 
       - name: Install frontend deps
         run: |
@@ -171,41 +171,47 @@ jobs:
 
       - name: Run migrations
         run: |
-          cd apps/api
-          DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:5432/vendo_ai \
-          DATABASE_URL_SYNC=postgresql://postgres:postgres@localhost:5432/vendo_ai \
           alembic upgrade head
+        env:
+          DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/vendo_ai
+          DATABASE_URL_SYNC: postgresql://postgres:postgres@localhost:5432/vendo_ai
 
       - name: Seed demo data
         run: |
-          cd apps/api
-          python ../../scripts/generate_business_data.py
+          python scripts/generate_business_data.py
+        env:
+          DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/vendo_ai
+          DATABASE_URL_SYNC: postgresql://postgres:postgres@localhost:5432/vendo_ai
 
       - name: Start backend
         run: |
-          cd apps/api
-          DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:5432/vendo_ai \
-          REDIS_URL=redis://localhost:6379/0 \
-          AI_PROVIDER=mock \
-          DEMO_MODE=true \
-          uvicorn main:app --host 0.0.0.0 --port 8000 &
+          uvicorn apps.api.main:app --host 0.0.0.0 --port 8000 &
           sleep 5
+        env:
+          DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/vendo_ai
+          DATABASE_URL_SYNC: postgresql://postgres:postgres@localhost:5432/vendo_ai
+          REDIS_URL: redis://localhost:6379/0
+          AI_PROVIDER: mock
+          DEMO_MODE: "true"
 
       - name: Test health endpoint
         run: curl -f http://localhost:8000/health
 
       - name: Test demo endpoint
         run: |
-          curl -X POST http://localhost:8000/api/demo/run \
+          LOGIN_RES=$(curl -s -X POST http://localhost:8000/api/auth/login \
             -H "Content-Type: application/json" \
-            -b "vendo_token=demo" \
-            -c cookies.txt
+            -d '{"email":"demo@vendo.ai","password":"password123"}')
+          TOKEN=$(echo $LOGIN_RES | grep -o '"access_token":"[^"]*' | cut -d'"' -f4)
+          curl -f -s -X POST http://localhost:8000/api/demo/run \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer $TOKEN"
 
   deploy-frontend:
     name: Deploy Frontend to Vercel
     runs-on: ubuntu-latest
     needs: [backend-tests, frontend-tests]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && secrets.VERCEL_TOKEN != ''
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -226,7 +232,7 @@ jobs:
     name: Deploy Backend
     runs-on: ubuntu-latest
     needs: [backend-tests, frontend-tests]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && secrets.BACKEND_DEPLOY_HOOK != ''
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -237,7 +243,4 @@ jobs:
 
       - name: Deploy to production
         run: |
-          echo "Deploy to Render/Railway/Fly.io via CLI or webhook"
-          echo "Image: vendo-ai-backend:latest"
-        env:
-          DEPLOY_HOOK: ${{ secrets.BACKEND_DEPLOY_HOOK }}
+          curl -X POST "${{ secrets.BACKEND_DEPLOY_HOOK }}"
