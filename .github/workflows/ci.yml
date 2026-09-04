@@ -1,0 +1,243 @@
+name: Vendo AI CI/CD
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+env:
+  PYTHON_VERSION: "3.12"
+  NODE_VERSION: "20"
+  POSTGRES_USER: postgres
+  POSTGRES_PASSWORD: postgres
+  POSTGRES_DB: vendo_ai
+
+jobs:
+  backend-tests:
+    name: Backend Tests (Python ${{ env.PYTHON_VERSION }})
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: ${{ env.POSTGRES_USER }}
+          POSTGRES_PASSWORD: ${{ env.POSTGRES_PASSWORD }}
+          POSTGRES_DB: ${{ env.POSTGRES_DB }}
+        ports: 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ${{ env.POSTGRES_USER }} -d ${{ env.POSTGRES_DB }}"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports: 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install uv
+        run: pip install uv
+
+      - name: Install dependencies
+        run: |
+          cd apps/api
+          uv pip install -e ".[dev]"
+
+      - name: Run database migrations
+        run: |
+          cd apps/api
+          DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:5432/vendo_ai \
+          DATABASE_URL_SYNC=postgresql://postgres:postgres@localhost:5432/vendo_ai \
+          alembic upgrade head
+
+      - name: Seed database
+        run: |
+          cd apps/api
+          python ../../scripts/generate_business_data.py
+
+      - name: Run linting (ruff)
+        run: |
+          cd apps/api
+          ruff check .
+
+      - name: Run backend tests
+        run: |
+          cd apps/api
+          python -m pytest tests/backend/test_core_logic.py -v
+
+      - name: Validate data integrity
+        run: |
+          cd apps/api
+          python ../../scripts/validate_data.py
+
+  frontend-tests:
+    name: Frontend Build & Lint
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: apps/web/package-lock.json
+
+      - name: Install dependencies
+        run: |
+          cd apps/web
+          npm ci
+
+      - name: Run linting
+        run: |
+          cd apps/web
+          npm run lint
+
+      - name: Build Next.js
+        run: |
+          cd apps/web
+          npm run build
+        env:
+          NEXT_PUBLIC_API_URL: http://localhost:8000
+
+  integration-test:
+    name: Integration Test (Full Stack)
+    runs-on: ubuntu-latest
+    needs: [backend-tests, frontend-tests]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: ${{ env.POSTGRES_USER }}
+          POSTGRES_PASSWORD: ${{ env.POSTGRES_PASSWORD }}
+          POSTGRES_DB: ${{ env.POSTGRES_DB }}
+        ports: 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ${{ env.POSTGRES_USER }} -d ${{ env.POSTGRES_DB }}"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports: 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install uv
+        run: pip install uv
+
+      - name: Install backend deps
+        run: |
+          cd apps/api
+          uv pip install -e ".[dev]"
+
+      - name: Install frontend deps
+        run: |
+          cd apps/web
+          npm ci
+
+      - name: Run migrations
+        run: |
+          cd apps/api
+          DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:5432/vendo_ai \
+          DATABASE_URL_SYNC=postgresql://postgres:postgres@localhost:5432/vendo_ai \
+          alembic upgrade head
+
+      - name: Seed demo data
+        run: |
+          cd apps/api
+          python ../../scripts/generate_business_data.py
+
+      - name: Start backend
+        run: |
+          cd apps/api
+          DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:5432/vendo_ai \
+          REDIS_URL=redis://localhost:6379/0 \
+          AI_PROVIDER=mock \
+          DEMO_MODE=true \
+          uvicorn main:app --host 0.0.0.0 --port 8000 &
+          sleep 5
+
+      - name: Test health endpoint
+        run: curl -f http://localhost:8000/health
+
+      - name: Test demo endpoint
+        run: |
+          curl -X POST http://localhost:8000/api/demo/run \
+            -H "Content-Type: application/json" \
+            -b "vendo_token=demo" \
+            -c cookies.txt
+
+  deploy-frontend:
+    name: Deploy Frontend to Vercel
+    runs-on: ubuntu-latest
+    needs: [backend-tests, frontend-tests]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Vercel CLI
+        run: npm install -g vercel@latest
+
+      - name: Pull Vercel Environment
+        run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
+
+      - name: Build Project Artifacts
+        run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
+
+      - name: Deploy Project Artifacts to Vercel
+        run: vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }}
+
+  deploy-backend:
+    name: Deploy Backend
+    runs-on: ubuntu-latest
+    needs: [backend-tests, frontend-tests]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Build Docker image
+        run: |
+          docker build -t vendo-ai-backend:latest -f apps/api/Dockerfile .
+
+      - name: Deploy to production
+        run: |
+          echo "Deploy to Render/Railway/Fly.io via CLI or webhook"
+          echo "Image: vendo-ai-backend:latest"
+        env:
+          DEPLOY_HOOK: ${{ secrets.BACKEND_DEPLOY_HOOK }}

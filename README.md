@@ -1,0 +1,443 @@
+# Vendo AI
+
+**Autonomous Procurement Intelligence**
+*Predict demand. Negotiate better. Protect every margin.*
+
+Vendo AI is an autonomous procurement intelligence platform for e-commerce businesses. It continuously monitors inventory and demand, identifies procurement opportunities, discovers and evaluates suppliers, negotiates within business constraints, evaluates margin and risk, routes decisions through deterministic policy controls, and creates auditable procurement actions.
+
+**Vendo AI is not a chatbot. It is an autonomous procurement operating system.**
+
+---
+
+## Architecture Overview
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                            VENDO AI PLATFORM                                │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  ┌──────────────┐    ┌──────────────┐    ┌──────────────┐    ┌───────────┐ │
+│  │   Next.js    │    │   FastAPI    │    │  PostgreSQL  │    │   Redis   │ │
+│  │   Frontend   │◄───►│   Backend    │◄───►│   (Primary)  │    │ (Cache/   │ │
+│  │   (Vercel)   │    │  (Render)    │    │  16+ / Async │    │  Jobs)    │ │
+│  └──────────────┘    └──────────────┘    └──────────────┘    └───────────┘ │
+│         │                   │                   │                  │        │
+│         │                   │                   ▼                  ▼        │
+│         │                   │    ┌──────────────────────────────────────┐   │
+│         │                   │    │         LANGGRAPH ORCHESTRATION      │   │
+│         │                   │    │  Inventory → Demand → Supplier →     │   │
+│         │                   │    │  Negotiation → Margin → Risk →       │   │
+│         │                   │    │  Procurement (Supervisor Agent)      │   │
+│         │                   │    └──────────────────────────────────────┘   │
+│         │                   │                   │                           │
+│         │                   │    ┌──────────────┐  ┌──────────────────┐    │
+│         │                   │    │ AI Provider  │  │ Payment Provider │    │
+│         │                   │    │ (Mock/OpenAI/│  │ (Mock/Stripe/    │    │
+│         │                   │    │  Gemini/Anth)│  │  PayPal/Adyen)   │    │
+│         │                   │    └──────────────┘  └──────────────────┘    │
+│         │                   │                   │                           │
+│         │                   │    ┌──────────────────────────────────────┐   │
+│         │                   │    │        DETERMINISTIC ENGINES         │   │
+│         │                   │    │  • Forecasting (Weighted MA + Trend) │   │
+│         │                   │    │  • Supplier Scoring (5-factor)       │   │
+│         │                   │    │  • Negotiation Sim (Stateful Personas)│   │
+│         │                   │    │  • Margin Engine (Decimal precision) │   │
+│         │                   │    │  • Policy Engine (Configurable Rules)│   │
+│         │                   │    └──────────────────────────────────────┘   │
+│         │                   │                   │                           │
+│         │                   │    ┌──────────────────────────────────────┐   │
+│         │                   │    │         AUDIT & COMPLIANCE           │   │
+│         │                   │    │  • Agent Events (11 event types)     │   │
+│         │                   │    │  • Financial Audit Logs (Immutable)  │   │
+│         │                   │    │  • Approval Trail (Manager Sign-off) │   │
+│         │                   │    │  • Inventory Movements (ACID)        │   │
+│         │                   │    └──────────────────────────────────────┘   │
+│         │                   │                   │                           │
+│         │                   ▼                   ▼                           │
+│         │         ┌──────────────────┐  ┌──────────────────┐               │
+│         │         │  Object Storage  │  │   Monitoring     │               │
+│         │         │  (S3/Local/Cloud)│  │  (Health Checks) │               │
+│         │         └──────────────────┘  └──────────────────┘               │
+│         │                                                                   │
+│         └───────────────────────────────────────────────────────────────────│
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## Quick Start
+
+### Prerequisites
+- Docker & Docker Compose
+- Python 3.12+
+- Node.js 20+
+- uv (Python package manager)
+
+### 1. Clone & Setup
+```bash
+git clone <repository-url>
+cd vendo-ai
+```
+
+### 2. Start Infrastructure
+```bash
+docker compose up -d
+# PostgreSQL on localhost:5432, Redis on localhost:6379
+```
+
+### 3. Backend Setup
+```bash
+cd apps/api
+uv venv .venv
+uv pip install -e ".[dev]"
+alembic upgrade head
+python ../../scripts/generate_business_data.py
+uvicorn main:app --reload --port 8000
+```
+
+### 4. Frontend Setup
+```bash
+cd apps/web
+npm install
+npm run dev
+# Frontend on localhost:3000
+```
+
+### 5. Run Autonomous Demo
+1. Open http://localhost:3000
+2. Login with demo credentials:
+   - **Buyer**: `demo@vendo.ai` / `password123`
+   - **Manager**: `manager@vendo.ai` / `password123`
+   - **Admin**: `admin@vendo.ai` / `password123`
+3. Navigate to Dashboard → Click **"Run Autonomous Demo"**
+4. Watch the multi-agent workflow execute in real-time
+
+---
+
+## Canonical Demo Result
+
+The autonomous demo executes a **deterministic** procurement workflow for **Wireless Earbuds Pro**:
+
+| Metric | Value |
+|--------|-------|
+| **Current Stock** | 18 units |
+| **Avg Daily Sales** | 12 units/day |
+| **Stock Coverage** | 1.5 days (CRITICAL) |
+| **Reorder Quantity** | 150 units |
+| **Selected Supplier** | NovaTech Industrial Solutions |
+| **Initial Quote** | ₹1,180/unit |
+| **Final Negotiated** | ₹1,105/unit (freight included) |
+| **Total Spend** | ₹165,750 |
+| **AI Savings** | ₹11,250 |
+| **Gross Margin** | 44.7% |
+| **PO Number** | VAI-PO-2026-1048 |
+| **Payment** | Simulated (CAPTURED) |
+| **Policy Decision** | REQUIRES_HUMAN_APPROVAL |
+
+---
+
+## Technology Stack
+
+| Layer | Technology |
+|-------|------------|
+| **Frontend** | Next.js 14, TypeScript, React 18, Tailwind CSS, Recharts |
+| **Backend** | FastAPI, Pydantic v2, SQLAlchemy 2.x, Alembic |
+| **Database** | PostgreSQL 16+ (asyncpg) |
+| **Cache/Jobs** | Redis 7+ |
+| **Orchestration** | LangGraph, LangChain Core |
+| **Auth** | JWT (HS256), bcrypt |
+| **Deployment** | Vercel (FE), Render/Fly.io (BE) |
+
+---
+
+## Project Structure
+
+```
+vendo-ai/
+├── apps/
+│   ├── api/                 # FastAPI backend
+│   │   ├── agents/          # 8 specialized agents + Supervisor
+│   │   ├── config.py        # Pydantic settings
+│   │   ├── database.py      # SQLAlchemy async/sync
+│   │   ├── forecasting/     # Weighted MA + Trend engine
+│   │   ├── integrations/    # AI & Payment provider abstractions
+│   │   ├── main.py          # FastAPI app + routers
+│   │   ├── models/          # 21 SQLAlchemy models
+│   │   ├── policy/          # Deterministic Policy Engine
+│   │   ├── routers/         # 17 REST API endpoints
+│   │   ├── schemas/         # Pydantic v2 request/response
+│   │   └── services/        # Business logic services
+│   └── web/                 # Next.js frontend
+│       ├── src/
+│       │   ├── app/         # App Router pages (19 routes)
+│       │   ├── components/  # Reusable UI components
+│       │   └── lib/         # API client, utilities
+├── database/
+│   ├── migrations/          # Alembic migrations
+│   └── seeds/               # Deterministic demo data
+├── docs/
+│   ├── architecture/        # Architecture docs
+│   ├── deployment/          # Deployment guides
+│   └── dataset/             # Dataset licensing
+├── scripts/
+│   ├── generate_business_data.py  # Seed demo data
+│   └── validate_data.py           # Data health checks
+├── docker-compose.yml       # PostgreSQL + Redis
+├── .github/workflows/       # CI/CD
+└── pyproject.toml           # Python workspace config
+```
+
+---
+
+## Key Features
+
+### Autonomous Procurement Loop
+```
+MONITOR → DETECT → FORECAST → SOURCE → NEGOTIATE 
+→ EVALUATE → POLICY_CHECK → APPROVE → PURCHASE → UPDATE → LEARN
+```
+
+### 8 Specialized Agents
+1. **Inventory Agent** - Stock monitoring, burn velocity, risk classification
+2. **Demand Agent** - 30-day forecast (weighted MA + trend + seasonality)
+3. **Supplier Agent** - 5-factor procurement scoring (35/25/20/10/10)
+4. **Negotiation Agent** - Stateful multi-round counter-offers (4 rounds)
+5. **Margin Agent** - Deterministic gross/net margin, ROI, savings
+6. **Risk Agent** - Policy evaluation + opportunity creation
+7. **Procurement Agent** - PO creation, payment simulation, inventory update
+8. **Supervisor Agent** - LangGraph workflow orchestration
+
+### Deterministic Financial Controls
+- **All money**: `Decimal` / PostgreSQL `NUMERIC(12,2)` — no floating point
+- **Policy Engine**: Single authority on financial execution
+- **LLM outputs**: Validated Pydantic schemas only
+- **Margin calculations**: Quantized to 2 decimal places
+
+### Multi-Tenant Architecture
+- All business entities scoped by `organization_id`
+- Row-level isolation enforced at service layer
+- Role-based access: ADMIN / MANAGER / BUYER / VIEWER
+
+### Complete Audit Trail
+- 11 event types: `INVENTORY_RISK_DETECTED`, `FORECAST_GENERATED`, `SUPPLIER_SELECTED`, `NEGOTIATION_STARTED`, `NEGOTIATION_COUNTERED`, `NEGOTIATION_COMPLETED`, `MARGIN_CALCULATED`, `POLICY_CHECKED`, `APPROVAL_REQUESTED`, `PO_CREATED`, `PAYMENT_SIMULATED`, `INVENTORY_UPDATED`
+- Financial audit logs: actor, action, amount, policy result, reason, confidence
+- No hidden chain-of-thought exposed
+
+---
+
+## API Documentation
+
+### Interactive Docs
+- **Swagger UI**: http://localhost:8000/docs
+- **ReDoc**: http://localhost:8000/redoc
+
+### Core Endpoints
+| Group | Endpoints |
+|-------|-----------|
+| **Auth** | `POST /api/auth/login`, `GET /api/auth/me` |
+| **Dashboard** | `GET /api/dashboard` |
+| **Products** | `GET /api/products`, `GET /api/products/{id}` |
+| **Inventory** | `GET /api/inventory`, `GET /api/inventory/movements` |
+| **Forecasts** | `GET /api/forecasts`, `POST /api/forecasts/generate` |
+| **Suppliers** | `GET /api/suppliers`, `GET /api/suppliers/quotes` |
+| **Negotiations** | `GET /api/negotiations`, `POST /api/negotiations/{id}/counter` |
+| **Opportunities** | `GET /api/opportunities`, `POST /api/opportunities/{id}/evaluate` |
+| **Purchase Orders** | `GET /api/purchase-orders`, `POST /api/purchase-orders` |
+| **Approvals** | `GET /api/approvals`, `POST /api/approvals/{id}/approve` |
+| **Analytics** | `GET /api/analytics` |
+| **Agents** | `GET /api/agents`, `POST /api/agents/run` |
+| **Activity** | `GET /api/activity`, `GET /api/activity/audit` |
+| **Notifications** | `GET /api/notifications`, `POST /api/notifications/{id}/read` |
+| **Settings** | `GET /api/settings`, `PUT /api/settings` |
+| **Demo** | `POST /api/demo/run` |
+| **Data Health** | `GET /api/data-health` |
+
+---
+
+## Environment Variables
+
+```bash
+# .env (never committed - use .env.example)
+APP_ENV=development
+APP_NAME="Vendo AI"
+APP_PORT=8000
+SECRET_KEY=vendo-ai-super-secret-key-change-in-production-min-32-chars-long
+API_V1_STR=/api
+DEMO_MODE=true
+
+DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:5432/vendo_ai
+DATABASE_URL_SYNC=postgresql://postgres:postgres@localhost:5432/vendo_ai
+REDIS_URL=redis://localhost:6379/0
+
+AI_PROVIDER=mock
+OPENAI_API_KEY=
+GEMINI_API_KEY=
+ANTHROPIC_API_KEY=
+
+STORAGE_PROVIDER=local
+STORAGE_PATH=./storage
+
+CORS_ORIGINS=["http://localhost:3000","http://localhost:8000"]
+
+AUTO_PURCHASE_ENABLED=false
+MAX_NEGOTIATION_ROUNDS=4
+MINIMUM_MARGIN=0.25
+TARGET_MARGIN=0.35
+AUTO_APPROVAL_LIMIT=50000
+HUMAN_APPROVAL_LIMIT=200000
+MONTHLY_BUDGET=1500000
+MINIMUM_SUPPLIER_RATING=3.8
+MAXIMUM_SUPPLIER_RISK=60
+MINIMUM_QUOTES=2
+
+NEXT_PUBLIC_API_URL=http://localhost:8000
+```
+
+---
+
+## Testing
+
+### Backend Tests
+```bash
+cd apps/api
+python -m pytest tests/backend/test_core_logic.py -v
+```
+
+### Data Validation
+```bash
+python scripts/validate_data.py
+```
+
+### Frontend Build
+```bash
+cd apps/web
+npm run build
+npm run lint
+```
+
+### CI/CD
+GitHub Actions workflow (`.github/workflows/ci.yml`) runs:
+- Backend tests + lint + migrations + seed
+- Frontend build + lint
+- Integration test (full stack on main branch)
+
+---
+
+## Deployment
+
+### Frontend (Vercel)
+```bash
+# Vercel CLI
+vercel --prod
+
+# Or connect GitHub repo in Vercel dashboard
+# Root directory: apps/web
+# Env: NEXT_PUBLIC_API_URL=https://your-backend.com
+```
+
+### Backend (Render / Fly.io / Railway)
+```bash
+# Docker build
+docker build -t vendo-ai-backend -f apps/api/Dockerfile .
+
+# Or use platform-specific deployment
+# Render: Connect GitHub → Web Service → Docker
+# Fly.io: fly launch --dockerfile apps/api/Dockerfile
+```
+
+### Production Database
+- Managed PostgreSQL (Neon, Supabase, RDS, etc.)
+- Run `alembic upgrade head` against production DB
+- Set `DATABASE_URL` from provider
+
+---
+
+## Dataset & Licensing
+
+### Product Dataset Source
+- **Primary**: Amazon Berkeley Objects (ABO) dataset
+- **License**: CC BY-NC 4.0 (Creative Commons Attribution-NonCommercial 4.0)
+- **Attribution**: "Product data sourced from Amazon Berkeley Objects dataset"
+- **Non-commercial**: Dataset cannot be used for commercial purposes
+
+### Synthetic Business Data
+- Generated programmatically via `scripts/generate_business_data.py`
+- No real company data; fully synthetic but realistic correlations
+- Includes: organizations, users, inventory, sales history, suppliers, quotes, procurement history
+
+---
+
+## Development Commands
+
+```bash
+# Backend
+uv sync                              # Install deps
+uv pip install -e ".[dev]"          # Editable install with dev deps
+alembic revision --autogenerate -m "msg"  # New migration
+alembic upgrade head                 # Apply migrations
+python scripts/generate_business_data.py   # Seed demo data
+python scripts/validate_data.py        # Data health check
+uvicorn apps.api.main:app --reload   # Dev server
+
+# Frontend
+npm install                          # Install deps
+npm run dev                          # Dev server (port 3000)
+npm run build                        # Production build
+npm run lint                         # ESLint
+
+# Full Stack
+docker compose up -d                 # Start PostgreSQL + Redis
+make dev                             # Or: start both backend + frontend
+```
+
+---
+
+## Career / Interview Positioning
+
+> "Vendo AI uses a **graph-based multi-agent workflow**. Specialized agents handle inventory detection, demand forecasting, supplier discovery, negotiation, margin analysis, risk assessment, and procurement. The LLM proposes actions, but **deterministic financial and policy engines decide whether those actions can execute**."
+
+This architecture demonstrates:
+- **System design**: Multi-agent orchestration with LangGraph
+- **Financial engineering**: Decimal precision, policy engines, audit trails
+- **Full-stack**: FastAPI + Next.js + PostgreSQL + Redis
+- **Production practices**: CI/CD, Docker, environment config, testing
+- **Security**: Multi-tenancy, RBAC, JWT, secrets management
+
+---
+
+## Limitations & Future Work
+
+### Current Limitations
+- Demo mode only (no real payments, no external supplier APIs)
+- Single-org demo data; multi-org UI not fully exercised
+- Forecasting limited to weighted MA (Prophet/XGBoost not integrated)
+- Image storage: local filesystem only (S3 abstraction ready)
+- No real-time WebSocket updates (polling-based)
+
+### Planned Improvements
+- [ ] Real supplier API integrations (Shopify, supplier portals)
+- [ ] Prophet / XGBoost forecasting models
+- [ ] Real payment provider (Stripe Connect)
+- [ ] Multi-currency support
+- [ ] Advanced RBAC with custom policies
+- [ ] WebSocket real-time agent event streaming
+- [ ] Kubernetes deployment manifests
+- [ ] Comprehensive E2E tests (Playwright)
+
+---
+
+## License
+
+MIT License - see [LICENSE](LICENSE) for details.
+
+**Dataset Note**: Product data sourced from Amazon Berkeley Objects (CC BY-NC 4.0). This project uses synthetic business data generated for demo purposes. The ABO dataset license applies to any product catalog data imported from that source.
+
+---
+
+## Acknowledgments
+
+- **LangGraph** for agent orchestration
+- **FastAPI** + **Pydantic** for robust API layer
+- **Next.js** + **Tailwind** for modern frontend
+- **PostgreSQL** + **SQLAlchemy** for data integrity
+- **Amazon Berkeley Objects** for product dataset reference
