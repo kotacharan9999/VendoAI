@@ -137,7 +137,7 @@ export default function ApprovalsPage() {
 
                   {app.comments && (
                     <div className="text-xs text-slate-500 italic">
-                      Decision Note: "{app.comments}"
+                      Decision Note: &ldquo;{app.comments}&rdquo;
                     </div>
                   )}
 

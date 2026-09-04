@@ -26,7 +26,7 @@ async def list_suppliers(
 ):
     stmt = (
         select(Supplier)
-        .where(Supplier.organization_id == current_user.organization_id, Supplier.is_active == True)
+        .where(Supplier.organization_id == current_user.organization_id, Supplier.is_active.is_(True))
         .order_by(Supplier.rating.desc())
     )
     res = await db.execute(stmt)

@@ -12,7 +12,7 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 @router.post("/login", response_model=Token)
 async def login(credentials: UserLogin, db: AsyncSession = Depends(get_db)):
-    stmt = select(User).where(User.email == credentials.email, User.is_active == True)
+    stmt = select(User).where(User.email == credentials.email, User.is_active.is_(True))
     result = await db.execute(stmt)
     user = result.scalar_one_or_none()
 

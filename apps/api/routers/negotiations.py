@@ -97,7 +97,7 @@ async def counter_negotiation(
     db: AsyncSession = Depends(get_db),
 ):
     try:
-        negotiation = await NegotiationService.execute_negotiation_round(
+        await NegotiationService.execute_negotiation_round(
             db=db,
             negotiation_id=negotiation_id,
             buyer_offer=data.offer_price,
@@ -119,4 +119,4 @@ async def counter_negotiation(
         res = await db.execute(stmt)
         return res.scalar_one()
     except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e

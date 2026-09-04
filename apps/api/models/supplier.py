@@ -1,12 +1,16 @@
 import uuid
 from datetime import datetime
 from decimal import Decimal
+from typing import TYPE_CHECKING
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, Numeric, String
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from apps.api.database import Base
+
+if TYPE_CHECKING:
+    from apps.api.models.negotiation import Negotiation
 
 
 class Supplier(Base):

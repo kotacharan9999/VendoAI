@@ -77,7 +77,7 @@ async def get_dashboard(
 
     stmt_supp = select(func.avg(Supplier.reliability_score)).where(
         Supplier.organization_id == org_id,
-        Supplier.is_active == True,
+        Supplier.is_active.is_(True),
     )
     avg_supp_rel = (await db.execute(stmt_supp)).scalar() or Decimal("85.40")
 

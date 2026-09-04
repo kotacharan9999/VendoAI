@@ -45,6 +45,13 @@ include = ["apps*"]
 line-length = 100
 target-version = "py312"
 
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP"]
+ignore = [
+    "B008",  # Allow Depends() in FastAPI endpoint signatures
+    "E501",  # Line length handled by formatter
+]
+
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]

@@ -52,6 +52,7 @@ export default function ProductDetailPage() {
     if (productId) {
       fetchProduct();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [productId]);
 
   const handleRunProcurement = async () => {

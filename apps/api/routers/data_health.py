@@ -68,7 +68,7 @@ async def get_data_health(
     stmt_quotes = (
         select(Product.id)
         .outerjoin(SupplierQuote, Product.id == SupplierQuote.product_id)
-        .where(Product.organization_id == org_id, SupplierQuote.id == None)
+        .where(Product.organization_id == org_id, SupplierQuote.id.is_(None))
     )
     unquoted_prods = (await db.execute(stmt_quotes)).all()
     checks.append(
