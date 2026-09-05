@@ -3,12 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Vendo AI — Redirecting to Live App</title>
-  <meta http-equiv="refresh" content="0; url=https://vendo-ai-web.vercel.app/login">
-  <link rel="canonical" href="https://vendo-ai-web.vercel.app/login">
-  <script>
-    window.location.replace("https://vendo-ai-web.vercel.app/login");
-  </script>
+  <title>Vendo AI — Access Portal & Credentials</title>
+  <link rel="icon" href="https://vendo-ai-web.vercel.app/favicon.ico">
   <style>
     * {
       margin: 0;
@@ -25,99 +21,306 @@
       color: #f8fafc;
       padding: 1.5rem;
     }
-    .card {
-      background: rgba(30, 41, 59, 0.7);
-      backdrop-filter: blur(16px);
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      border-radius: 1.25rem;
-      padding: 2.5rem;
-      max-width: 440px;
+    .container {
+      max-width: 580px;
       width: 100%;
-      text-align: center;
-      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+    }
+    .card {
+      background: rgba(30, 41, 59, 0.75);
+      backdrop-filter: blur(20px);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 1.5rem;
+      padding: 2.25rem;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6);
+    }
+    .header {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+      padding-bottom: 1.25rem;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
     }
     .logo {
-      width: 3.5rem;
-      height: 3.5rem;
+      width: 3.25rem;
+      height: 3.25rem;
       background: #2563eb;
       color: #fff;
       font-weight: 800;
       font-size: 1.75rem;
       border-radius: 0.875rem;
-      display: inline-flex;
+      display: flex;
       align-items: center;
       justify-content: center;
-      margin-bottom: 1.25rem;
       box-shadow: 0 10px 15px -3px rgba(37, 99, 235, 0.4);
     }
-    h1 {
-      font-size: 1.35rem;
+    .title-area h1 {
+      font-size: 1.4rem;
       font-weight: 700;
-      margin-bottom: 0.5rem;
       color: #ffffff;
+      letter-spacing: -0.02em;
     }
-    p {
-      font-size: 0.875rem;
+    .title-area p {
+      font-size: 0.825rem;
       color: #94a3b8;
-      margin-bottom: 1.75rem;
-      line-height: 1.5;
+      margin-top: 0.2rem;
     }
-    .spinner {
+    .badge {
       display: inline-block;
-      width: 1.75rem;
-      height: 1.75rem;
-      border: 3px solid rgba(255, 255, 255, 0.15);
-      border-radius: 50%;
-      border-top-color: #3b82f6;
-      animation: spin 0.8s linear infinite;
+      background: rgba(34, 197, 94, 0.15);
+      color: #4ade80;
+      border: 1px solid rgba(34, 197, 94, 0.3);
+      font-size: 0.7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      padding: 0.25rem 0.6rem;
+      border-radius: 9999px;
+      margin-left: auto;
+    }
+    .intro-text {
+      font-size: 0.875rem;
+      color: #cbd5e1;
+      line-height: 1.5;
       margin-bottom: 1.25rem;
     }
-    @keyframes spin {
-      to { transform: rotate(360deg); }
+    .creds-title {
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #60a5fa;
+      margin-bottom: 0.75rem;
     }
-    .btn {
-      display: inline-flex;
+    .creds-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+      margin-bottom: 1.5rem;
+    }
+    .cred-item {
+      background: rgba(15, 23, 42, 0.6);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 0.875rem;
+      padding: 0.875rem 1rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      transition: all 0.2s ease;
+    }
+    .cred-item:hover {
+      border-color: rgba(59, 130, 246, 0.4);
+      background: rgba(15, 23, 42, 0.85);
+    }
+    .cred-info {
+      display: flex;
+      flex-direction: column;
+      gap: 0.2rem;
+    }
+    .cred-role {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: #f1f5f9;
+    }
+    .role-tag {
+      font-size: 0.65rem;
+      padding: 0.15rem 0.45rem;
+      border-radius: 0.35rem;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+    .tag-admin { background: rgba(139, 92, 246, 0.25); color: #c4b5fd; border: 1px solid rgba(139, 92, 246, 0.4); }
+    .tag-manager { background: rgba(16, 185, 129, 0.25); color: #6ee7b7; border: 1px solid rgba(16, 185, 129, 0.4); }
+    .tag-buyer { background: rgba(59, 130, 246, 0.25); color: #93c5fd; border: 1px solid rgba(59, 130, 246, 0.4); }
+    .cred-details {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 0.775rem;
+      color: #94a3b8;
+    }
+    .cred-details span {
+      color: #e2e8f0;
+      font-weight: 600;
+    }
+    .copy-btn {
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      color: #cbd5e1;
+      padding: 0.4rem 0.75rem;
+      border-radius: 0.5rem;
+      font-size: 0.75rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      white-space: nowrap;
+    }
+    .copy-btn:hover {
+      background: #2563eb;
+      border-color: #2563eb;
+      color: #ffffff;
+    }
+    .main-btn {
+      display: flex;
       align-items: center;
       justify-content: center;
-      gap: 0.5rem;
+      gap: 0.6rem;
       width: 100%;
       background: #2563eb;
       color: #ffffff;
-      padding: 0.75rem 1.25rem;
-      border-radius: 0.625rem;
-      font-weight: 600;
-      font-size: 0.875rem;
+      padding: 0.9rem 1.5rem;
+      border-radius: 0.75rem;
+      font-weight: 700;
+      font-size: 0.95rem;
       text-decoration: none;
       transition: all 0.2s ease;
-      box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.3);
+      box-shadow: 0 10px 20px -5px rgba(37, 99, 235, 0.4);
     }
-    .btn:hover {
+    .main-btn:hover {
       background: #1d4ed8;
-      transform: translateY(-1px);
+      transform: translateY(-2px);
+      box-shadow: 0 15px 25px -5px rgba(37, 99, 235, 0.5);
     }
-    .sublink {
-      display: block;
-      margin-top: 1rem;
+    .footer-links {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 1.25rem;
+      padding-top: 1rem;
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
       font-size: 0.75rem;
+    }
+    .footer-links a {
       color: #64748b;
       text-decoration: none;
+      transition: color 0.15s ease;
     }
-    .sublink:hover {
+    .footer-links a:hover {
       color: #94a3b8;
       text-decoration: underline;
+    }
+    .toast {
+      position: fixed;
+      bottom: 2rem;
+      left: 50%;
+      transform: translateX(-50%) translateY(100px);
+      background: #10b981;
+      color: white;
+      padding: 0.6rem 1.25rem;
+      border-radius: 9999px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+      opacity: 0;
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      pointer-events: none;
+      z-index: 50;
+    }
+    .toast.show {
+      transform: translateX(-50%) translateY(0);
+      opacity: 1;
     }
   </style>
 </head>
 <body>
-  <div class="card">
-    <div class="logo">V</div>
-    <div class="spinner"></div>
-    <h1>Redirecting to Vendo AI</h1>
-    <p>Taking you directly to the live platform...</p>
-    <a class="btn" href="https://vendo-ai-web.vercel.app/login">
-      Open Vendo AI App &rarr;
-    </a>
-    <a class="sublink" href="https://vendo-ai-web.vercel.app/dashboard">Direct link to Dashboard</a>
+  <div class="container">
+    <div class="card">
+      <div class="header">
+        <div class="logo">V</div>
+        <div class="title-area">
+          <h1>Vendo AI Portal</h1>
+          <p>Autonomous Procurement Intelligence Platform</p>
+        </div>
+        <div class="badge">Live &bull; Active</div>
+      </div>
+
+      <p class="intro-text">
+        Welcome! You can sign in using any of the enterprise test roles below. Click <strong>Copy</strong> on any role, then proceed to the live application.
+      </p>
+
+      <div class="creds-title">Available Login Credentials</div>
+      <div class="creds-list">
+        <!-- Admin -->
+        <div class="cred-item">
+          <div class="cred-info">
+            <div class="cred-role">
+              <span>Administrator</span>
+              <span class="role-tag tag-admin">Full Authority</span>
+            </div>
+            <div class="cred-details">
+              Email: <span>admin@vendo.ai</span> &bull; Pass: <span>password123</span>
+            </div>
+          </div>
+          <button class="copy-btn" onclick="copyCred('admin@vendo.ai', 'password123', 'Administrator')">Copy &amp; Use</button>
+        </div>
+
+        <!-- Manager -->
+        <div class="cred-item">
+          <div class="cred-info">
+            <div class="cred-role">
+              <span>Procurement Manager</span>
+              <span class="role-tag tag-manager">Approvals</span>
+            </div>
+            <div class="cred-details">
+              Email: <span>manager@vendo.ai</span> &bull; Pass: <span>password123</span>
+            </div>
+          </div>
+          <button class="copy-btn" onclick="copyCred('manager@vendo.ai', 'password123', 'Manager')">Copy &amp; Use</button>
+        </div>
+
+        <!-- Buyer -->
+        <div class="cred-item">
+          <div class="cred-info">
+            <div class="cred-role">
+              <span>Sourcing Specialist (Buyer)</span>
+              <span class="role-tag tag-buyer">Catalog &amp; POs</span>
+            </div>
+            <div class="cred-details">
+              Email: <span>buyer@vendo.ai</span> &bull; Pass: <span>password123</span>
+            </div>
+          </div>
+          <button class="copy-btn" onclick="copyCred('buyer@vendo.ai', 'password123', 'Buyer')">Copy &amp; Use</button>
+        </div>
+      </div>
+
+      <a id="launchBtn" class="main-btn" href="https://vendo-ai-web.vercel.app/login">
+        <span>Proceed to Sign In &rarr;</span>
+      </a>
+
+      <div class="footer-links">
+        <a href="https://vendo-ai-web.vercel.app/dashboard" target="_blank">Direct to Dashboard</a>
+        <a href="https://vendo-ai-backend.onrender.com/docs" target="_blank">FastAPI Swagger Docs</a>
+        <a href="https://github.com/kotacharan9999/VendoAI" target="_blank">GitHub Repository</a>
+      </div>
+    </div>
   </div>
+
+  <div id="toast" class="toast">Credentials copied to clipboard!</div>
+
+  <script>
+    function copyCred(email, pass, role) {
+      const text = `Email: ${email}\nPassword: ${pass}`;
+      navigator.clipboard.writeText(text).then(() => {
+        showToast(`Copied ${role} credentials! Opening app...`);
+        setTimeout(() => {
+          window.location.href = 'https://vendo-ai-web.vercel.app/login';
+        }, 1200);
+      }).catch(() => {
+        showToast(`Selected ${role}: ${email}`);
+        setTimeout(() => {
+          window.location.href = 'https://vendo-ai-web.vercel.app/login';
+        }, 1200);
+      });
+    }
+
+    function showToast(msg) {
+      const toast = document.getElementById('toast');
+      toast.innerText = msg;
+      toast.classList.add('show');
+      setTimeout(() => {
+        toast.classList.remove('show');
+      }, 2500);
+    }
+  </script>
 </body>
 </html>
