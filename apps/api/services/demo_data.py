@@ -1013,15 +1013,200 @@ def get_demo_agent_runs(limit: int = 20) -> list[AgentRunResponse]:
 
 
 def run_demo_agent(agent_name: str, product_id: uuid.UUID | None = None) -> dict[str, Any]:
+    import random
+    target = DEMO_PRODUCTS[0] if not product_id else next((p for p in DEMO_PRODUCTS if p.id == product_id), DEMO_PRODUCTS[0])
+    savings = round(random.uniform(8000, 15000), 2)
+    spend = round(random.uniform(140000, 200000), 2)
+    margin = round(random.uniform(38, 52), 2)
+    po_seq = random.randint(1048, 9999)
     return {
         "status": "success",
         "stage": "COMPLETED",
-        "po_number": "VAI-PO-2026-1048",
-        "total_spend": 165750.0,
-        "expected_savings": 11250.0,
-        "calculated_gross_margin": 44.72,
-        "selected_supplier": "Rayalaseema Agro Commodities Pvt Ltd",
+        "agent_name": agent_name,
+        "product_title": target.title,
+        "po_number": f"VAI-PO-2026-{po_seq}",
+        "total_spend": spend,
+        "expected_savings": savings,
+        "calculated_gross_margin": margin,
+        "selected_supplier": DEMO_SUPPLIERS[random.randint(0, len(DEMO_SUPPLIERS) - 1)].name,
+        "stages": [
+            {"step": 1, "name": "Monitoring Inventory", "status": "completed", "ts": (NOW - timedelta(minutes=10)).isoformat()},
+            {"step": 2, "name": "Detecting Stockout Risk", "status": "completed", "ts": (NOW - timedelta(minutes=9)).isoformat()},
+            {"step": 3, "name": "Forecasting 30-Day Demand", "status": "completed", "ts": (NOW - timedelta(minutes=8)).isoformat()},
+            {"step": 4, "name": "Sourcing Multi-Supplier Quotes", "status": "completed", "ts": (NOW - timedelta(minutes=6)).isoformat()},
+            {"step": 5, "name": "Autonomous Supplier Negotiation", "status": "completed", "ts": (NOW - timedelta(minutes=4)).isoformat()},
+            {"step": 6, "name": "Deterministic Margin Analysis", "status": "completed", "ts": (NOW - timedelta(minutes=3)).isoformat()},
+            {"step": 7, "name": "Policy Engine Verification", "status": "completed", "ts": (NOW - timedelta(minutes=2)).isoformat()},
+            {"step": 8, "name": "Purchase Order Generation", "status": "completed", "ts": (NOW - timedelta(minutes=1)).isoformat()},
+            {"step": 9, "name": "Payment Simulation", "status": "completed", "ts": NOW.isoformat()},
+            {"step": 10, "name": "Expected Inventory Inbound Update", "status": "completed", "ts": NOW.isoformat()},
+            {"step": 11, "name": "Audit Trail Logged", "status": "completed", "ts": NOW.isoformat()},
+        ],
+        "negotiation_rounds": [
+            {"round": 1, "bid": round(spend / 150 * 0.92, 2), "counter": round(spend / 150 * 0.97, 2), "status": "countered"},
+            {"round": 2, "bid": round(spend / 150 * 0.94, 2), "counter": round(spend / 150 * 0.95, 2), "status": "countered"},
+            {"round": 3, "bid": round(spend / 150 * 0.945, 2), "counter": round(spend / 150 * 0.945, 2), "status": "agreed"},
+        ],
     }
+
+
+# ---------------------------------------------------------------------------
+# In-memory CRUD for when DB is unavailable
+# ---------------------------------------------------------------------------
+
+def create_demo_product(data: dict[str, Any]) -> ProductResponse:
+    new_id = uuid.uuid4()
+    now = datetime.utcnow()
+    product = ProductResponse(
+        id=new_id,
+        organization_id=ORG_ID,
+        title=data.get("title", "New Product"),
+        description=data.get("description"),
+        category=data.get("category", "General"),
+        sku=data.get("sku", f"SKU-{new_id.hex[:8].upper()}"),
+        source=data.get("source", "internal"),
+        source_product_id=data.get("source_product_id"),
+        selling_price=Decimal(str(data.get("selling_price", 0))),
+        cost_price=Decimal(str(data.get("cost_price", 0))),
+        currency=data.get("currency", "INR"),
+        dimensions=data.get("dimensions"),
+        metadata_json=data.get("metadata_json"),
+        created_at=now,
+        updated_at=now,
+        images=[],
+        current_stock=data.get("initial_stock", 0),
+        stockout_risk_level="LOW",
+        days_of_inventory=Decimal("30.0"),
+    )
+    DEMO_PRODUCTS.append(product)
+    # Create matching inventory record
+    inv = InventoryResponse(
+        id=uuid.uuid4(),
+        organization_id=ORG_ID,
+        product_id=new_id,
+        current_stock=data.get("initial_stock", 0),
+        reserved_stock=0,
+        expected_inbound=0,
+        reorder_point=data.get("reorder_point", 10),
+        safety_stock=5,
+        suggested_reorder_qty=50,
+        days_of_inventory=Decimal("30.0"),
+        stockout_risk_level="LOW",
+        last_checked_at=now,
+        updated_at=now,
+        product=product,
+    )
+    DEMO_INVENTORY.append(inv)
+    return product
+
+
+def update_demo_product(product_id: uuid.UUID, data: dict[str, Any]) -> ProductResponse | None:
+    for p in DEMO_PRODUCTS:
+        if p.id == product_id or str(p.id) == str(product_id):
+            if data.get("title") is not None:
+                p.title = data["title"]
+            if data.get("description") is not None:
+                p.description = data["description"]
+            if data.get("category") is not None:
+                p.category = data["category"]
+            if data.get("sku") is not None:
+                p.sku = data["sku"]
+            if data.get("selling_price") is not None:
+                p.selling_price = Decimal(str(data["selling_price"]))
+            if data.get("cost_price") is not None:
+                p.cost_price = Decimal(str(data["cost_price"]))
+            if data.get("currency") is not None:
+                p.currency = data["currency"]
+            p.updated_at = datetime.utcnow()
+            # Also update inventory stock if provided
+            if data.get("current_stock") is not None or data.get("reorder_point") is not None:
+                for inv in DEMO_INVENTORY:
+                    if inv.product_id == p.id:
+                        if data.get("current_stock") is not None:
+                            inv.current_stock = data["current_stock"]
+                            p.current_stock = data["current_stock"]
+                        if data.get("reorder_point") is not None:
+                            inv.reorder_point = data["reorder_point"]
+                        _recalc_risk(inv)
+                        break
+            return p
+    return None
+
+
+def delete_demo_product(product_id: uuid.UUID) -> dict[str, Any] | None:
+    for i, p in enumerate(DEMO_PRODUCTS):
+        if p.id == product_id or str(p.id) == str(product_id):
+            title = p.title
+            DEMO_PRODUCTS.pop(i)
+            DEMO_INVENTORY[:] = [inv for inv in DEMO_INVENTORY if inv.product_id != p.id]
+            return {"status": "deleted", "id": str(product_id), "title": title}
+    return None
+
+
+def update_demo_inventory(inventory_id: uuid.UUID, data: dict[str, Any]) -> InventoryResponse | None:
+    for inv in DEMO_INVENTORY:
+        if inv.id == inventory_id or str(inv.id) == str(inventory_id):
+            old_stock = inv.current_stock
+            if data.get("current_stock") is not None:
+                inv.current_stock = data["current_stock"]
+            if data.get("reserved_stock") is not None:
+                inv.reserved_stock = data["reserved_stock"]
+            if data.get("expected_inbound") is not None:
+                inv.expected_inbound = data["expected_inbound"]
+            if data.get("reorder_point") is not None:
+                inv.reorder_point = data["reorder_point"]
+            if data.get("safety_stock") is not None:
+                inv.safety_stock = data["safety_stock"]
+            if data.get("suggested_reorder_qty") is not None:
+                inv.suggested_reorder_qty = data["suggested_reorder_qty"]
+            _recalc_risk(inv)
+            inv.updated_at = datetime.utcnow()
+            inv.last_checked_at = datetime.utcnow()
+            # Sync product stock
+            for p in DEMO_PRODUCTS:
+                if p.id == inv.product_id:
+                    p.current_stock = inv.current_stock
+                    break
+            return inv
+    # If not found by inventory_id, try matching by product_id (frontend sometimes sends product id)
+    for inv in DEMO_INVENTORY:
+        if inv.product_id == inventory_id or str(inv.product_id) == str(inventory_id):
+            if data.get("current_stock") is not None:
+                inv.current_stock = data["current_stock"]
+            if data.get("reserved_stock") is not None:
+                inv.reserved_stock = data["reserved_stock"]
+            if data.get("expected_inbound") is not None:
+                inv.expected_inbound = data["expected_inbound"]
+            if data.get("reorder_point") is not None:
+                inv.reorder_point = data["reorder_point"]
+            if data.get("safety_stock") is not None:
+                inv.safety_stock = data["safety_stock"]
+            if data.get("suggested_reorder_qty") is not None:
+                inv.suggested_reorder_qty = data["suggested_reorder_qty"]
+            _recalc_risk(inv)
+            inv.updated_at = datetime.utcnow()
+            inv.last_checked_at = datetime.utcnow()
+            for p in DEMO_PRODUCTS:
+                if p.id == inv.product_id:
+                    p.current_stock = inv.current_stock
+                    break
+            return inv
+    return None
+
+
+def _recalc_risk(inv: InventoryResponse) -> None:
+    if inv.current_stock <= inv.safety_stock:
+        inv.stockout_risk_level = "CRITICAL"
+    elif inv.current_stock <= inv.reorder_point:
+        inv.stockout_risk_level = "HIGH"
+    elif inv.current_stock <= int(inv.reorder_point * 1.5):
+        inv.stockout_risk_level = "MEDIUM"
+    else:
+        inv.stockout_risk_level = "HEALTHY"
+    avg_daily = Decimal("5.0")
+    if inv.current_stock > 0 and avg_daily > 0:
+        inv.days_of_inventory = (Decimal(str(inv.current_stock)) / avg_daily).quantize(Decimal("0.1"))
+
 
 
 def get_demo_activity(limit: int = 50) -> list[AgentEventResponse]:

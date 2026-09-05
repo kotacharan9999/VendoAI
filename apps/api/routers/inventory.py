@@ -16,6 +16,7 @@ from apps.api.services.auth import get_current_user
 from apps.api.services.demo_data import (
     get_demo_inventory,
     get_demo_inventory_movements,
+    update_demo_inventory,
 )
 
 router = APIRouter(prefix="/inventory", tags=["inventory"])
@@ -80,6 +81,10 @@ async def get_inventory_item(
 ):
     if db is None:
         inv = get_demo_inventory()
+        # Try to find by id
+        for item in inv:
+            if item.id == inventory_id or item.product_id == inventory_id:
+                return item
         return inv[0]
 
     try:
@@ -106,62 +111,77 @@ async def update_inventory(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    stmt = select(Inventory).where(Inventory.id == inventory_id, Inventory.organization_id == current_user.organization_id)
-    res = await db.execute(stmt)
-    inv = res.scalar_one_or_none()
-    if not inv:
+    if db is None:
+        result = update_demo_inventory(inventory_id, data.model_dump(exclude_unset=True))
+        if result:
+            return result
         raise HTTPException(status_code=404, detail="Inventory record not found")
 
-    old_stock = inv.current_stock
-    new_stock = data.current_stock if data.current_stock is not None else old_stock
+    try:
+        stmt = select(Inventory).where(Inventory.id == inventory_id, Inventory.organization_id == current_user.organization_id)
+        res = await db.execute(stmt)
+        inv = res.scalar_one_or_none()
+        if not inv:
+            raise HTTPException(status_code=404, detail="Inventory record not found")
 
-    if data.current_stock is not None:
-        inv.current_stock = data.current_stock
-    if data.reserved_stock is not None:
-        inv.reserved_stock = data.reserved_stock
-    if data.expected_inbound is not None:
-        inv.expected_inbound = data.expected_inbound
-    if data.reorder_point is not None:
-        inv.reorder_point = data.reorder_point
-    if data.safety_stock is not None:
-        inv.safety_stock = data.safety_stock
-    if data.suggested_reorder_qty is not None:
-        inv.suggested_reorder_qty = data.suggested_reorder_qty
+        old_stock = inv.current_stock
+        new_stock = data.current_stock if data.current_stock is not None else old_stock
 
-    # Recalculate risk level based on updated levels
-    if inv.current_stock <= inv.safety_stock:
-        inv.stockout_risk_level = "CRITICAL"
-    elif inv.current_stock <= inv.reorder_point:
-        inv.stockout_risk_level = "HIGH"
-    elif inv.current_stock <= int(inv.reorder_point * 1.5):
-        inv.stockout_risk_level = "MEDIUM"
-    else:
-        inv.stockout_risk_level = "HEALTHY"
+        if data.current_stock is not None:
+            inv.current_stock = data.current_stock
+        if data.reserved_stock is not None:
+            inv.reserved_stock = data.reserved_stock
+        if data.expected_inbound is not None:
+            inv.expected_inbound = data.expected_inbound
+        if data.reorder_point is not None:
+            inv.reorder_point = data.reorder_point
+        if data.safety_stock is not None:
+            inv.safety_stock = data.safety_stock
+        if data.suggested_reorder_qty is not None:
+            inv.suggested_reorder_qty = data.suggested_reorder_qty
 
-    # Log inventory movement if current stock changed
-    if data.current_stock is not None and data.current_stock != old_stock:
-        stock_diff = new_stock - old_stock
-        movement = InventoryMovement(
-            organization_id=current_user.organization_id,
-            product_id=inv.product_id,
-            reference_type="MANUAL_ADJUSTMENT",
-            reference_id=str(inv.id),
-            movement_type="ADJUSTMENT",
-            quantity=abs(stock_diff),
-            previous_stock=old_stock,
-            new_stock=new_stock,
-            reason=f"Manual stock adjustment: {old_stock} -> {new_stock} units by {current_user.email}",
+        # Recalculate risk level based on updated levels
+        if inv.current_stock <= inv.safety_stock:
+            inv.stockout_risk_level = "CRITICAL"
+        elif inv.current_stock <= inv.reorder_point:
+            inv.stockout_risk_level = "HIGH"
+        elif inv.current_stock <= int(inv.reorder_point * 1.5):
+            inv.stockout_risk_level = "MEDIUM"
+        else:
+            inv.stockout_risk_level = "HEALTHY"
+
+        # Log inventory movement if current stock changed
+        if data.current_stock is not None and data.current_stock != old_stock:
+            stock_diff = new_stock - old_stock
+            movement = InventoryMovement(
+                organization_id=current_user.organization_id,
+                product_id=inv.product_id,
+                reference_type="MANUAL_ADJUSTMENT",
+                reference_id=str(inv.id),
+                movement_type="ADJUSTMENT",
+                quantity=abs(stock_diff),
+                previous_stock=old_stock,
+                new_stock=new_stock,
+                reason=f"Manual stock adjustment: {old_stock} -> {new_stock} units by {current_user.email}",
+            )
+            db.add(movement)
+
+        await db.commit()
+
+        # Re-query with eager loading so the product relationship is properly loaded
+        # before Pydantic serializes the response (avoids async lazy-load error)
+        stmt_reload = (
+            select(Inventory)
+            .options(selectinload(Inventory.product).selectinload(Product.images))
+            .where(Inventory.id == inventory_id)
         )
-        db.add(movement)
+        res_reload = await db.execute(stmt_reload)
+        return res_reload.scalar_one()
+    except HTTPException:
+        raise
+    except Exception:
+        result = update_demo_inventory(inventory_id, data.model_dump(exclude_unset=True))
+        if result:
+            return result
+        raise HTTPException(status_code=404, detail="Inventory record not found")
 
-    await db.commit()
-
-    # Re-query with eager loading so the product relationship is properly loaded
-    # before Pydantic serializes the response (avoids async lazy-load error)
-    stmt_reload = (
-        select(Inventory)
-        .options(selectinload(Inventory.product).selectinload(Product.images))
-        .where(Inventory.id == inventory_id)
-    )
-    res_reload = await db.execute(stmt_reload)
-    return res_reload.scalar_one()
