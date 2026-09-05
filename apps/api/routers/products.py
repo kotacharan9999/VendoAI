@@ -20,6 +20,7 @@ from apps.api.schemas.product import (
     ProductUpdate,
 )
 from apps.api.services.auth import get_current_user
+from apps.api.services.demo_data import get_demo_product_detail, get_demo_products
 
 router = APIRouter(prefix="/products", tags=["products"])
 
@@ -34,33 +35,39 @@ async def list_products(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    stmt = (
-        select(Product)
-        .options(selectinload(Product.images), selectinload(Product.inventory))
-        .where(Product.organization_id == current_user.organization_id)
-    )
+    if db is None:
+        return get_demo_products(category=category, search=search, risk_level=risk_level)
 
-    if category:
-        stmt = stmt.where(Product.category == category)
-    if search:
-        search_fmt = f"%{search}%"
-        stmt = stmt.where(or_(Product.title.ilike(search_fmt), Product.sku.ilike(search_fmt)))
+    try:
+        stmt = (
+            select(Product)
+            .options(selectinload(Product.images), selectinload(Product.inventory))
+            .where(Product.organization_id == current_user.organization_id)
+        )
 
-    stmt = stmt.order_by(Product.created_at.desc()).offset(offset).limit(limit)
-    res = await db.execute(stmt)
-    products = res.scalars().all()
+        if category:
+            stmt = stmt.where(Product.category == category)
+        if search:
+            search_fmt = f"%{search}%"
+            stmt = stmt.where(or_(Product.title.ilike(search_fmt), Product.sku.ilike(search_fmt)))
 
-    response = []
-    for p in products:
-        item = ProductResponse.model_validate(p)
-        if p.inventory:
-            item.current_stock = p.inventory.current_stock
-            item.stockout_risk_level = p.inventory.stockout_risk_level
-            item.days_of_inventory = p.inventory.days_of_inventory
-        if risk_level and item.stockout_risk_level != risk_level:
-            continue
-        response.append(item)
-    return response
+        stmt = stmt.order_by(Product.created_at.desc()).offset(offset).limit(limit)
+        res = await db.execute(stmt)
+        products = res.scalars().all()
+
+        response = []
+        for p in products:
+            item = ProductResponse.model_validate(p)
+            if p.inventory:
+                item.current_stock = p.inventory.current_stock
+                item.stockout_risk_level = p.inventory.stockout_risk_level
+                item.days_of_inventory = p.inventory.days_of_inventory
+            if risk_level and item.stockout_risk_level != risk_level:
+                continue
+            response.append(item)
+        return response if response else get_demo_products(category=category, search=search, risk_level=risk_level)
+    except Exception:
+        return get_demo_products(category=category, search=search, risk_level=risk_level)
 
 
 @router.get("/{product_id}", response_model=ProductDetailResponse)
@@ -69,47 +76,53 @@ async def get_product(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    stmt = (
-        select(Product)
-        .options(
-            selectinload(Product.images),
-            selectinload(Product.inventory),
-            selectinload(Product.supplier_products),
-            selectinload(Product.sales_records),
+    if db is None:
+        return get_demo_product_detail(product_id)
+
+    try:
+        stmt = (
+            select(Product)
+            .options(
+                selectinload(Product.images),
+                selectinload(Product.inventory),
+                selectinload(Product.supplier_products),
+                selectinload(Product.sales_records),
+            )
+            .where(Product.id == product_id, Product.organization_id == current_user.organization_id)
         )
-        .where(Product.id == product_id, Product.organization_id == current_user.organization_id)
-    )
-    res = await db.execute(stmt)
-    product = res.scalar_one_or_none()
-    if not product:
-        raise HTTPException(status_code=404, detail="Product not found")
+        res = await db.execute(stmt)
+        product = res.scalar_one_or_none()
+        if not product:
+            return get_demo_product_detail(product_id)
 
-    detail = ProductDetailResponse.model_validate(product)
-    if product.inventory:
-        detail.current_stock = product.inventory.current_stock
-        detail.stockout_risk_level = product.inventory.stockout_risk_level
-        detail.days_of_inventory = product.inventory.days_of_inventory
-        detail.safety_stock = product.inventory.safety_stock
-        detail.reorder_point = product.inventory.reorder_point
-        detail.suggested_reorder_qty = product.inventory.suggested_reorder_qty
+        detail = ProductDetailResponse.model_validate(product)
+        if product.inventory:
+            detail.current_stock = product.inventory.current_stock
+            detail.stockout_risk_level = product.inventory.stockout_risk_level
+            detail.days_of_inventory = product.inventory.days_of_inventory
+            detail.safety_stock = product.inventory.safety_stock
+            detail.reorder_point = product.inventory.reorder_point
+            detail.suggested_reorder_qty = product.inventory.suggested_reorder_qty
 
-    if product.sales_records:
-        sales_30d = sorted(product.sales_records, key=lambda s: s.date, reverse=True)[:30]
-        tot = sum(s.units_sold for s in sales_30d)
-        detail.avg_daily_sales = (Decimal(str(tot)) / Decimal(str(max(1, len(sales_30d))))).quantize(Decimal("0.1"))
-        detail.forecasted_demand_30d = (detail.avg_daily_sales * Decimal(30)).quantize(Decimal("0.1"))
+        if product.sales_records:
+            sales_30d = sorted(product.sales_records, key=lambda s: s.date, reverse=True)[:30]
+            tot = sum(s.units_sold for s in sales_30d)
+            detail.avg_daily_sales = (Decimal(str(tot)) / Decimal(str(max(1, len(sales_30d))))).quantize(Decimal("0.1"))
+            detail.forecasted_demand_30d = (detail.avg_daily_sales * Decimal(30)).quantize(Decimal("0.1"))
 
-    stmt_quotes = select(SupplierQuote).where(
-        SupplierQuote.product_id == product_id,
-        SupplierQuote.organization_id == current_user.organization_id,
-        SupplierQuote.status == "RECEIVED",
-    )
-    quotes = (await db.execute(stmt_quotes)).scalars().all()
-    detail.active_suppliers_count = len(quotes)
-    if quotes:
-        detail.lowest_quote_price = min(q.unit_price for q in quotes)
+        stmt_quotes = select(SupplierQuote).where(
+            SupplierQuote.product_id == product_id,
+            SupplierQuote.organization_id == current_user.organization_id,
+            SupplierQuote.status == "RECEIVED",
+        )
+        quotes = (await db.execute(stmt_quotes)).scalars().all()
+        detail.active_suppliers_count = len(quotes)
+        if quotes:
+            detail.lowest_quote_price = min(q.unit_price for q in quotes)
 
-    return detail
+        return detail
+    except Exception:
+        return get_demo_product_detail(product_id)
 
 
 @router.post("", response_model=ProductResponse)

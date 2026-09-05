@@ -1,4 +1,5 @@
 import uuid
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -46,6 +47,7 @@ async def login(credentials: UserLogin, db: AsyncSession = Depends(get_db)):
         "admin@vendo.ai": ("Aarav Sharma", "ADMIN", uuid.UUID("22222222-2222-2222-2222-222222222222")),
         "manager@vendo.ai": ("Priya Patel", "MANAGER", uuid.UUID("33333333-3333-3333-3333-333333333333")),
         "buyer@vendo.ai": ("Rohan Verma", "BUYER", uuid.UUID("44444444-4444-4444-4444-444444444444")),
+        "demo@vendo.ai": ("Aarav Sharma", "ADMIN", uuid.UUID("22222222-2222-2222-2222-222222222222")),
     }
 
     email_lower = credentials.email.lower().strip()

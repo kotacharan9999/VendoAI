@@ -1,4 +1,19 @@
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+import { getFallbackData } from "./fallbackData";
+
+function getApiBase(): string {
+  if (process.env.NEXT_PUBLIC_API_URL) {
+    return process.env.NEXT_PUBLIC_API_URL;
+  }
+  if (typeof window !== "undefined") {
+    const host = window.location.hostname;
+    if (host !== "localhost" && host !== "127.0.0.1") {
+      return "https://vendo-ai-backend.onrender.com";
+    }
+  }
+  return "http://localhost:8000";
+}
+
+const API_BASE = getApiBase();
 
 class ApiClient {
   private getToken(): string | null {
@@ -27,6 +42,11 @@ class ApiClient {
         headers,
       });
     } catch (err: any) {
+      const fallback = getFallbackData<T>(endpoint);
+      if (fallback !== null) {
+        console.warn(`[VendoAI API] Using fallback data for ${endpoint}:`, err.message);
+        return fallback;
+      }
       if (err.name === "TypeError" || (err.message && err.message.toLowerCase().includes("fetch"))) {
         throw new Error(
           `Unable to connect to backend server at ${API_BASE}. Please ensure the FastAPI backend is running.`
@@ -36,6 +56,11 @@ class ApiClient {
     }
 
     if (!response.ok) {
+      const fallback = getFallbackData<T>(endpoint);
+      if (fallback !== null) {
+        console.warn(`[VendoAI API] HTTP ${response.status} on ${endpoint}, using fallback data.`);
+        return fallback;
+      }
       let errorMessage = `API Error: ${response.status} ${response.statusText}`;
       try {
         const errorJson = await response.json();

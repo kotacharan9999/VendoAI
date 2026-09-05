@@ -39,6 +39,8 @@ class Settings(BaseSettings):
         "http://127.0.0.1:3001",
         "http://127.0.0.1:8000",
         "https://vendo-ai-web.vercel.app",
+        "https://kotacharan9999.github.io",
+        "https://vendo-ai-backend.onrender.com",
     ]
 
     AUTO_PURCHASE_ENABLED: bool = False

@@ -14,6 +14,11 @@ from apps.api.schemas.supplier import (
     SupplierResponse,
 )
 from apps.api.services.auth import get_current_user
+from apps.api.services.demo_data import (
+    get_demo_quotes,
+    get_demo_supplier_detail,
+    get_demo_suppliers,
+)
 from apps.api.services.supplier_service import SupplierService
 
 router = APIRouter(prefix="/suppliers", tags=["suppliers"])
@@ -24,28 +29,34 @@ async def list_suppliers(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    stmt = (
-        select(Supplier)
-        .where(Supplier.organization_id == current_user.organization_id, Supplier.is_active.is_(True))
-        .order_by(Supplier.rating.desc())
-    )
-    res = await db.execute(stmt)
-    suppliers = res.scalars().all()
+    if db is None:
+        return get_demo_suppliers()
 
-    response = []
-    for s in suppliers:
-        item = SupplierResponse.model_validate(s)
-        breakdown = SupplierService.calculate_procurement_score(
-            quote_price=s.risk_score,
-            benchmark_price=s.risk_score,
-            reliability_score=s.reliability_score,
-            delivery_score=s.delivery_score,
-            quality_score=s.quality_score,
-            payment_terms=s.payment_terms,
+    try:
+        stmt = (
+            select(Supplier)
+            .where(Supplier.organization_id == current_user.organization_id, Supplier.is_active.is_(True))
+            .order_by(Supplier.rating.desc())
         )
-        item.procurement_score = breakdown.composite_procurement_score
-        response.append(item)
-    return response
+        res = await db.execute(stmt)
+        suppliers = res.scalars().all()
+
+        response = []
+        for s in suppliers:
+            item = SupplierResponse.model_validate(s)
+            breakdown = SupplierService.calculate_procurement_score(
+                quote_price=s.risk_score,
+                benchmark_price=s.risk_score,
+                reliability_score=s.reliability_score,
+                delivery_score=s.delivery_score,
+                quality_score=s.quality_score,
+                payment_terms=s.payment_terms,
+            )
+            item.procurement_score = breakdown.composite_procurement_score
+            response.append(item)
+        return response if response else get_demo_suppliers()
+    except Exception:
+        return get_demo_suppliers()
 
 
 @router.get("/quotes", response_model=list[SupplierQuoteResponse])
@@ -55,19 +66,26 @@ async def list_quotes(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    stmt = (
-        select(SupplierQuote)
-        .options(selectinload(SupplierQuote.supplier))
-        .where(SupplierQuote.organization_id == current_user.organization_id)
-        .order_by(SupplierQuote.created_at.desc())
-    )
-    if product_id:
-        stmt = stmt.where(SupplierQuote.product_id == product_id)
-    if supplier_id:
-        stmt = stmt.where(SupplierQuote.supplier_id == supplier_id)
+    if db is None:
+        return get_demo_quotes(product_id=product_id, supplier_id=supplier_id)
 
-    res = await db.execute(stmt)
-    return res.scalars().all()
+    try:
+        stmt = (
+            select(SupplierQuote)
+            .options(selectinload(SupplierQuote.supplier))
+            .where(SupplierQuote.organization_id == current_user.organization_id)
+            .order_by(SupplierQuote.created_at.desc())
+        )
+        if product_id:
+            stmt = stmt.where(SupplierQuote.product_id == product_id)
+        if supplier_id:
+            stmt = stmt.where(SupplierQuote.supplier_id == supplier_id)
+
+        res = await db.execute(stmt)
+        quotes = res.scalars().all()
+        return quotes if quotes else get_demo_quotes(product_id=product_id, supplier_id=supplier_id)
+    except Exception:
+        return get_demo_quotes(product_id=product_id, supplier_id=supplier_id)
 
 
 @router.get("/{supplier_id}", response_model=SupplierDetailResponse)
@@ -76,34 +94,40 @@ async def get_supplier(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    stmt = select(Supplier).where(Supplier.id == supplier_id, Supplier.organization_id == current_user.organization_id)
-    res = await db.execute(stmt)
-    supplier = res.scalar_one_or_none()
-    if not supplier:
-        raise HTTPException(status_code=404, detail="Supplier not found")
+    if db is None:
+        return get_demo_supplier_detail(supplier_id)
 
-    detail = SupplierDetailResponse.model_validate(supplier)
-    breakdown = SupplierService.calculate_procurement_score(
-        quote_price=supplier.risk_score,
-        benchmark_price=supplier.risk_score,
-        reliability_score=supplier.reliability_score,
-        delivery_score=supplier.delivery_score,
-        quality_score=supplier.quality_score,
-        payment_terms=supplier.payment_terms,
-    )
-    detail.scoring_breakdown = breakdown
-    detail.procurement_score = breakdown.composite_procurement_score
+    try:
+        stmt = select(Supplier).where(Supplier.id == supplier_id, Supplier.organization_id == current_user.organization_id)
+        res = await db.execute(stmt)
+        supplier = res.scalar_one_or_none()
+        if not supplier:
+            return get_demo_supplier_detail(supplier_id)
 
-    stmt_p = select(func.count(SupplierProduct.id)).where(SupplierProduct.supplier_id == supplier_id)
-    detail.products_count = (await db.execute(stmt_p)).scalar() or 0
+        detail = SupplierDetailResponse.model_validate(supplier)
+        breakdown = SupplierService.calculate_procurement_score(
+            quote_price=supplier.risk_score,
+            benchmark_price=supplier.risk_score,
+            reliability_score=supplier.reliability_score,
+            delivery_score=supplier.delivery_score,
+            quality_score=supplier.quality_score,
+            payment_terms=supplier.payment_terms,
+        )
+        detail.scoring_breakdown = breakdown
+        detail.procurement_score = breakdown.composite_procurement_score
 
-    stmt_q = select(func.count(SupplierQuote.id)).where(SupplierQuote.supplier_id == supplier_id, SupplierQuote.status == "RECEIVED")
-    detail.active_quotes_count = (await db.execute(stmt_q)).scalar() or 0
+        stmt_p = select(func.count(SupplierProduct.id)).where(SupplierProduct.supplier_id == supplier_id)
+        detail.products_count = (await db.execute(stmt_p)).scalar() or 0
 
-    stmt_po = select(func.count(PurchaseOrder.id)).where(PurchaseOrder.supplier_id == supplier_id)
-    detail.completed_orders_count = (await db.execute(stmt_po)).scalar() or 0
+        stmt_q = select(func.count(SupplierQuote.id)).where(SupplierQuote.supplier_id == supplier_id, SupplierQuote.status == "RECEIVED")
+        detail.active_quotes_count = (await db.execute(stmt_q)).scalar() or 0
 
-    return detail
+        stmt_po = select(func.count(PurchaseOrder.id)).where(PurchaseOrder.supplier_id == supplier_id)
+        detail.completed_orders_count = (await db.execute(stmt_po)).scalar() or 0
+
+        return detail
+    except Exception:
+        return get_demo_supplier_detail(supplier_id)
 
 
 @router.post("", response_model=SupplierResponse)

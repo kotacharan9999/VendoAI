@@ -49,7 +49,7 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.CORS_ORIGINS if isinstance(settings.CORS_ORIGINS, list) else ["*"],
-    allow_origin_regex=r"^https?://((localhost|127\.0\.0\.1)(:\d+)?|.*\.vercel\.app)$",
+    allow_origin_regex=r"^https?://((localhost|127\.0\.0\.1)(:\d+)?|.*\.vercel\.app|.*\.github\.io|.*\.onrender\.com)$",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -57,6 +57,18 @@ app.add_middleware(
 
 if os.path.exists(settings.STORAGE_PATH):
     app.mount("/storage", StaticFiles(directory=settings.STORAGE_PATH), name="storage")
+
+
+@app.get("/", tags=["system"])
+async def root():
+    return {
+        "status": "online",
+        "app": settings.APP_NAME,
+        "env": settings.APP_ENV,
+        "docs": "/docs",
+        "health": "/health",
+        "api_v1": settings.API_V1_STR,
+    }
 
 
 @app.get("/health", tags=["system"])

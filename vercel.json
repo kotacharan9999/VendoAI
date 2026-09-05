@@ -1,0 +1,8 @@
+{
+  "buildCommand": "npm run build --workspace=apps/web",
+  "outputDirectory": "apps/web/.next",
+  "framework": "nextjs",
+  "env": {
+    "NEXT_PUBLIC_API_URL": "https://vendo-ai-backend.onrender.com"
+  }
+}

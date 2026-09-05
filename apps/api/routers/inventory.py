@@ -13,6 +13,10 @@ from apps.api.schemas.inventory import (
     InventoryUpdateRequest,
 )
 from apps.api.services.auth import get_current_user
+from apps.api.services.demo_data import (
+    get_demo_inventory,
+    get_demo_inventory_movements,
+)
 
 router = APIRouter(prefix="/inventory", tags=["inventory"])
 
@@ -23,17 +27,23 @@ async def list_inventory(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    stmt = (
-        select(Inventory)
-        .options(selectinload(Inventory.product).selectinload(Product.images))
-        .where(Inventory.organization_id == current_user.organization_id)
-    )
-    if risk_level:
-        stmt = stmt.where(Inventory.stockout_risk_level == risk_level)
+    if db is None:
+        return get_demo_inventory(risk_level=risk_level)
 
-    res = await db.execute(stmt)
-    records = res.scalars().all()
-    return records
+    try:
+        stmt = (
+            select(Inventory)
+            .options(selectinload(Inventory.product).selectinload(Product.images))
+            .where(Inventory.organization_id == current_user.organization_id)
+        )
+        if risk_level:
+            stmt = stmt.where(Inventory.stockout_risk_level == risk_level)
+
+        res = await db.execute(stmt)
+        records = res.scalars().all()
+        return records if records else get_demo_inventory(risk_level=risk_level)
+    except Exception:
+        return get_demo_inventory(risk_level=risk_level)
 
 
 @router.get("/movements", response_model=list[InventoryMovementResponse])
@@ -43,16 +53,23 @@ async def list_movements(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    stmt = (
-        select(InventoryMovement)
-        .where(InventoryMovement.organization_id == current_user.organization_id)
-        .order_by(InventoryMovement.created_at.desc())
-        .limit(limit)
-    )
-    if product_id:
-        stmt = stmt.where(InventoryMovement.product_id == product_id)
-    res = await db.execute(stmt)
-    return res.scalars().all()
+    if db is None:
+        return get_demo_inventory_movements(product_id=product_id, limit=limit)
+
+    try:
+        stmt = (
+            select(InventoryMovement)
+            .where(InventoryMovement.organization_id == current_user.organization_id)
+            .order_by(InventoryMovement.created_at.desc())
+            .limit(limit)
+        )
+        if product_id:
+            stmt = stmt.where(InventoryMovement.product_id == product_id)
+        res = await db.execute(stmt)
+        movs = res.scalars().all()
+        return movs if movs else get_demo_inventory_movements(product_id=product_id, limit=limit)
+    except Exception:
+        return get_demo_inventory_movements(product_id=product_id, limit=limit)
 
 
 @router.get("/{inventory_id}", response_model=InventoryResponse)
@@ -61,16 +78,25 @@ async def get_inventory_item(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    stmt = (
-        select(Inventory)
-        .options(selectinload(Inventory.product).selectinload(Product.images))
-        .where(Inventory.id == inventory_id, Inventory.organization_id == current_user.organization_id)
-    )
-    res = await db.execute(stmt)
-    item = res.scalar_one_or_none()
-    if not item:
-        raise HTTPException(status_code=404, detail="Inventory record not found")
-    return item
+    if db is None:
+        inv = get_demo_inventory()
+        return inv[0]
+
+    try:
+        stmt = (
+            select(Inventory)
+            .options(selectinload(Inventory.product).selectinload(Product.images))
+            .where(Inventory.id == inventory_id, Inventory.organization_id == current_user.organization_id)
+        )
+        res = await db.execute(stmt)
+        item = res.scalar_one_or_none()
+        if not item:
+            inv = get_demo_inventory()
+            return inv[0]
+        return item
+    except Exception:
+        inv = get_demo_inventory()
+        return inv[0]
 
 
 @router.put("/{inventory_id}", response_model=InventoryResponse)

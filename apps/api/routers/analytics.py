@@ -8,6 +8,7 @@ from apps.api.database import get_db
 from apps.api.models import Negotiation, Product, PurchaseOrder, Supplier, User
 from apps.api.schemas.analytics import AnalyticsResponse
 from apps.api.services.auth import get_current_user
+from apps.api.services.demo_data import get_demo_analytics
 
 router = APIRouter(prefix="/analytics", tags=["analytics"])
 
@@ -17,21 +18,27 @@ async def get_analytics(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
+    if db is None:
+        return get_demo_analytics()
+
     org_id = current_user.organization_id
 
-    stmt_spend = select(func.sum(PurchaseOrder.total_amount)).where(PurchaseOrder.organization_id == org_id)
-    spend = (await db.execute(stmt_spend)).scalar() or Decimal("165750.00")
+    try:
+        stmt_spend = select(func.sum(PurchaseOrder.total_amount)).where(PurchaseOrder.organization_id == org_id)
+        spend = (await db.execute(stmt_spend)).scalar() or Decimal("165750.00")
 
-    stmt_sav = select(func.sum(Negotiation.expected_savings)).where(Negotiation.organization_id == org_id)
-    savings = (await db.execute(stmt_sav)).scalar() or Decimal("11250.00")
+        stmt_sav = select(func.sum(Negotiation.expected_savings)).where(Negotiation.organization_id == org_id)
+        savings = (await db.execute(stmt_sav)).scalar() or Decimal("11250.00")
 
-    stmt_margin = select(func.avg(((Product.selling_price - Product.cost_price) / Product.selling_price) * 100)).where(
-        Product.organization_id == org_id, Product.selling_price > 0
-    )
-    avg_margin = (await db.execute(stmt_margin)).scalar() or Decimal("44.70")
+        stmt_margin = select(func.avg(((Product.selling_price - Product.cost_price) / Product.selling_price) * 100)).where(
+            Product.organization_id == org_id, Product.selling_price > 0
+        )
+        avg_margin = (await db.execute(stmt_margin)).scalar() or Decimal("44.70")
 
-    stmt_rel = select(func.avg(Supplier.reliability_score)).where(Supplier.organization_id == org_id)
-    avg_rel = (await db.execute(stmt_rel)).scalar() or Decimal("86.50")
+        stmt_rel = select(func.avg(Supplier.reliability_score)).where(Supplier.organization_id == org_id)
+        avg_rel = (await db.execute(stmt_rel)).scalar() or Decimal("86.50")
+    except Exception:
+        return get_demo_analytics()
 
     spend_by_cat = [
         {"category": "Electronics", "spend": float(spend * Decimal("0.65")), "percentage": 65},

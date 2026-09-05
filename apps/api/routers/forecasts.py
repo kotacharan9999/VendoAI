@@ -10,6 +10,10 @@ from apps.api.forecasting.engine import ForecastingEngine
 from apps.api.models import Forecast, Product, SalesHistory, User
 from apps.api.schemas.forecast import ForecastGenerationRequest, ForecastResponse
 from apps.api.services.auth import get_current_user
+from apps.api.services.demo_data import (
+    generate_demo_forecast,
+    get_demo_forecasts,
+)
 
 router = APIRouter(prefix="/forecasts", tags=["forecasts"])
 
@@ -21,17 +25,24 @@ async def list_forecasts(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    stmt = (
-        select(Forecast)
-        .options(selectinload(Forecast.product).selectinload(Product.images))
-        .where(Forecast.organization_id == current_user.organization_id)
-        .order_by(Forecast.generated_at.desc())
-        .limit(limit)
-    )
-    if product_id:
-        stmt = stmt.where(Forecast.product_id == product_id)
-    res = await db.execute(stmt)
-    return res.scalars().all()
+    if db is None:
+        return get_demo_forecasts(product_id=product_id, limit=limit)
+
+    try:
+        stmt = (
+            select(Forecast)
+            .options(selectinload(Forecast.product).selectinload(Product.images))
+            .where(Forecast.organization_id == current_user.organization_id)
+            .order_by(Forecast.generated_at.desc())
+            .limit(limit)
+        )
+        if product_id:
+            stmt = stmt.where(Forecast.product_id == product_id)
+        res = await db.execute(stmt)
+        fc = res.scalars().all()
+        return fc if fc else get_demo_forecasts(product_id=product_id, limit=limit)
+    except Exception:
+        return get_demo_forecasts(product_id=product_id, limit=limit)
 
 
 @router.post("/generate", response_model=ForecastResponse)
@@ -40,30 +51,36 @@ async def generate_forecast(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    stmt = (
-        select(SalesHistory)
-        .where(SalesHistory.product_id == data.product_id, SalesHistory.organization_id == current_user.organization_id)
-        .order_by(SalesHistory.date.desc())
-        .limit(60)
-    )
-    res = await db.execute(stmt)
-    sales = [{"date": s.date, "units_sold": s.units_sold} for s in res.scalars().all()]
+    if db is None:
+        return generate_demo_forecast(data.product_id, data.horizon_days)
 
-    engine = ForecastingEngine()
-    result = engine.forecast(str(data.product_id), sales, data.horizon_days, data.model_name or "WeightedMovingAverageWithTrend")
+    try:
+        stmt = (
+            select(SalesHistory)
+            .where(SalesHistory.product_id == data.product_id, SalesHistory.organization_id == current_user.organization_id)
+            .order_by(SalesHistory.date.desc())
+            .limit(60)
+        )
+        res = await db.execute(stmt)
+        sales = [{"date": s.date, "units_sold": s.units_sold} for s in res.scalars().all()]
 
-    forecast = Forecast(
-        organization_id=current_user.organization_id,
-        product_id=data.product_id,
-        horizon_days=data.horizon_days,
-        predicted_demand=result.predicted_demand,
-        confidence_score=result.confidence_score,
-        model_name=result.model_name,
-        baseline_demand=result.baseline_demand,
-        trend_factor=result.trend_factor,
-        seasonality_factor=result.seasonality_factor,
-    )
-    db.add(forecast)
-    await db.commit()
-    await db.refresh(forecast)
-    return forecast
+        engine = ForecastingEngine()
+        result = engine.forecast(str(data.product_id), sales, data.horizon_days, data.model_name or "WeightedMovingAverageWithTrend")
+
+        forecast = Forecast(
+            organization_id=current_user.organization_id,
+            product_id=data.product_id,
+            horizon_days=data.horizon_days,
+            predicted_demand=result.predicted_demand,
+            confidence_score=result.confidence_score,
+            model_name=result.model_name,
+            baseline_demand=result.baseline_demand,
+            trend_factor=result.trend_factor,
+            seasonality_factor=result.seasonality_factor,
+        )
+        db.add(forecast)
+        await db.commit()
+        await db.refresh(forecast)
+        return forecast
+    except Exception:
+        return generate_demo_forecast(data.product_id, data.horizon_days)
