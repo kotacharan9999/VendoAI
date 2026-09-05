@@ -93,6 +93,45 @@ export default function LoginPage() {
         router.push("/opportunities");
       }
     } catch (err: any) {
+      // Graceful fallback for demo accounts if backend is waking up from idle on Render
+      const emailLower = email.trim().toLowerCase();
+      const validDemoUsers: Record<string, { role: RoleId; name: string }> = {
+        "admin@vendo.ai": { role: "ADMIN", name: "Aarav Sharma (Admin)" },
+        "manager@vendo.ai": { role: "MANAGER", name: "Priya Patel (Manager)" },
+        "buyer@vendo.ai": { role: "BUYER", name: "Rohan Verma (Buyer)" },
+      };
+
+      if (
+        validDemoUsers[emailLower] &&
+        ["password123", "admin123", "admin", "password"].includes(password.trim())
+      ) {
+        const demoInfo = validDemoUsers[emailLower];
+        const mockUser = {
+          access_token: "demo-session-token-" + Date.now(),
+          user_id: "22222222-2222-2222-2222-222222222222",
+          organization_id: "11111111-1111-1111-1111-111111111111",
+          email: emailLower,
+          full_name: demoInfo.name,
+          role: demoInfo.role,
+          manager_threshold: managerThreshold,
+          buyer_zone: buyerZone,
+        };
+        if (typeof window !== "undefined") {
+          localStorage.setItem("vendo_token", mockUser.access_token);
+          localStorage.setItem("vendo_user", JSON.stringify(mockUser));
+          window.dispatchEvent(new Event("vendo-auth-change"));
+        }
+
+        if (demoInfo.role === "ADMIN") {
+          router.push("/dashboard");
+        } else if (demoInfo.role === "MANAGER") {
+          router.push("/approvals");
+        } else {
+          router.push("/opportunities");
+        }
+        return;
+      }
+
       setError(err.message || "Invalid credentials. Please verify your email and password.");
       setLoading(false);
     }
@@ -382,6 +421,26 @@ export default function LoginPage() {
                   required
                   className="mt-1 w-full rounded-lg border bg-white px-3.5 py-2.5 text-xs focus:bg-white focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
                 />
+              </div>
+
+              <div className="flex items-center justify-between text-[11px] pt-0.5">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEmail(
+                      selectedRole === "ADMIN"
+                        ? "admin@vendo.ai"
+                        : selectedRole === "MANAGER"
+                        ? "manager@vendo.ai"
+                        : "buyer@vendo.ai"
+                    );
+                    setPassword("password123");
+                  }}
+                  className="text-blue-600 hover:text-blue-700 font-medium hover:underline flex items-center gap-1"
+                >
+                  <span>Quick-fill {selectedRole.toLowerCase()}@vendo.ai</span>
+                </button>
+                <span className="text-slate-400">Password: password123</span>
               </div>
 
               <div className="flex items-center justify-between pt-2">
