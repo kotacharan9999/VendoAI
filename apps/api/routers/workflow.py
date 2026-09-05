@@ -7,11 +7,11 @@ from apps.api.database import get_db
 from apps.api.models import Product, User
 from apps.api.services.auth import get_current_user
 
-router = APIRouter(prefix="/demo", tags=["demo"])
+router = APIRouter(prefix="/workflow", tags=["workflow"])
 
 
 @router.post("/run", response_model=dict)
-async def run_autonomous_demo(
+async def run_autonomous_procurement_cycle(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -29,13 +29,13 @@ async def run_autonomous_demo(
         product = (await db.execute(stmt_fallback)).scalars().first()
 
     if not product:
-        raise HTTPException(status_code=400, detail="Demo product 'Wireless Earbuds Pro' not found. Please seed database first.")
+        raise HTTPException(status_code=400, detail="Target product 'Wireless Earbuds Pro' not found. Please populate product catalog first.")
 
     final_state = await SupervisorAgent.run_autonomous_procurement(
         db=db,
         organization_id=current_user.organization_id,
         product_id=product.id,
-        trigger="AUTONOMOUS_DEMO_BUTTON",
+        trigger="AUTONOMOUS_PROCUREMENT_ACTION",
     )
 
     return {

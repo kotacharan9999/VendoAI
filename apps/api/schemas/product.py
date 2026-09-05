@@ -33,6 +33,8 @@ class ProductBase(BaseModel):
 
 class ProductCreate(ProductBase):
     organization_id: uuid.UUID | None = None
+    initial_stock: int | None = 0
+    reorder_point: int | None = 10
 
 
 class ProductUpdate(BaseModel):
@@ -43,6 +45,8 @@ class ProductUpdate(BaseModel):
     selling_price: Decimal | None = None
     cost_price: Decimal | None = None
     currency: str | None = None
+    current_stock: int | None = None
+    reorder_point: int | None = None
 
 
 class ProductResponse(ProductBase):

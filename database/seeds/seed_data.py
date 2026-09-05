@@ -42,7 +42,7 @@ async def seed_database():
         users_data = [
             ("admin@vendo.ai", "Aarav Sharma", "ADMIN"),
             ("manager@vendo.ai", "Priya Patel", "MANAGER"),
-            ("demo@vendo.ai", "Rohan Verma", "BUYER"),
+            ("buyer@vendo.ai", "Rohan Verma", "BUYER"),
         ]
         for email, full_name, role in users_data:
             stmt_u = select(User).where(User.email == email)

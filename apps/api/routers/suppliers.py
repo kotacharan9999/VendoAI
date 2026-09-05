@@ -132,3 +132,52 @@ async def create_supplier(
     await db.commit()
     await db.refresh(supplier)
     return supplier
+
+
+@router.put("/{supplier_id}", response_model=SupplierResponse)
+async def update_supplier(
+    supplier_id: uuid.UUID,
+    data: SupplierCreate,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    stmt = select(Supplier).where(Supplier.id == supplier_id, Supplier.organization_id == current_user.organization_id)
+    res = await db.execute(stmt)
+    supplier = res.scalar_one_or_none()
+    if not supplier:
+        raise HTTPException(status_code=404, detail="Supplier not found")
+
+    supplier.name = data.name
+    supplier.rating = data.rating
+    supplier.reliability_score = data.reliability_score
+    supplier.delivery_score = data.delivery_score
+    supplier.quality_score = data.quality_score
+    supplier.payment_terms = data.payment_terms
+    supplier.risk_score = data.risk_score
+    supplier.negotiation_style = data.negotiation_style
+    supplier.min_order_qty = data.min_order_qty
+    supplier.lead_time_days = data.lead_time_days
+    supplier.location = data.location
+    supplier.is_active = data.is_active
+
+    await db.commit()
+    await db.refresh(supplier)
+    return supplier
+
+
+@router.delete("/{supplier_id}")
+async def delete_supplier(
+    supplier_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    stmt = select(Supplier).where(Supplier.id == supplier_id, Supplier.organization_id == current_user.organization_id)
+    res = await db.execute(stmt)
+    supplier = res.scalar_one_or_none()
+    if not supplier:
+        raise HTTPException(status_code=404, detail="Supplier not found")
+
+    # Soft-delete: mark as inactive
+    supplier.is_active = False
+    await db.commit()
+    return {"message": f"Supplier '{supplier.name}' deactivated successfully"}

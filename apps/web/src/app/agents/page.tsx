@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { Bot, Play, CheckCircle2, Clock, RefreshCw, Loader2 } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
+import { AccessRestricted } from "@/components/auth/AccessRestricted";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
@@ -21,6 +22,7 @@ export default function AgentsPage() {
   const [runs, setRuns] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [triggering, setTriggering] = useState<string | null>(null);
+  const [userRole, setUserRole] = useState<string>("ADMIN");
 
   const fetchAgentRuns = async () => {
     setLoading(true);
@@ -35,8 +37,42 @@ export default function AgentsPage() {
   };
 
   useEffect(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const stored = localStorage.getItem("vendo_user");
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          setUserRole((parsed.role || "ADMIN").toUpperCase());
+        }
+      } catch (e) {}
+    }
     fetchAgentRuns();
   }, []);
+
+  if (userRole !== "ADMIN") {
+    return (
+      <AccessRestricted
+        currentRole={userRole}
+        requiredRole="Chief Procurement Officer / Administrator"
+        pageName="Agent Control & Orchestration"
+        allowedUsage={
+          userRole === "MANAGER"
+            ? [
+                "Reviewing and approving high-value purchase orders",
+                "Monitoring active supplier price negotiations",
+                "Analyzing spend budgets and regional gross margins",
+                "Evaluating vendor risk and reliability scores",
+              ]
+            : [
+                "Catalog browsing and inventory reorders",
+                "Reviewing AI sourcing opportunities",
+                "Tracking warehouse stock and burn rates",
+                "Drafting purchase orders for management",
+              ]
+        }
+      />
+    );
+  }
 
   const handleTrigger = async (agentName: string) => {
     setTriggering(agentName);

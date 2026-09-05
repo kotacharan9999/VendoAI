@@ -17,7 +17,7 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
-import { AutonomousDemoModal } from "@/components/demo/AutonomousDemoModal";
+import { AutonomousWorkflowModal } from "@/components/workflow/AutonomousWorkflowModal";
 import { api } from "@/lib/api";
 import { formatINR, cn } from "@/lib/utils";
 
@@ -29,9 +29,9 @@ export default function ProductDetailPage() {
   const [product, setProduct] = useState<any>(null);
   const [quotes, setQuotes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [isDemoModalOpen, setIsDemoModalOpen] = useState(false);
+  const [isWorkflowModalOpen, setIsWorkflowModalOpen] = useState(false);
   const [isProcuring, setIsProcuring] = useState(false);
-  const [demoResult, setDemoResult] = useState<any>(null);
+  const [workflowResult, setWorkflowResult] = useState<any>(null);
   const [procureError, setProcureError] = useState<string | null>(null);
 
   const fetchProduct = async () => {
@@ -56,7 +56,7 @@ export default function ProductDetailPage() {
   }, [productId]);
 
   const handleRunProcurement = async () => {
-    setIsDemoModalOpen(true);
+    setIsWorkflowModalOpen(true);
     setIsProcuring(true);
     setProcureError(null);
     try {
@@ -64,7 +64,7 @@ export default function ProductDetailPage() {
         agent_name: "SupervisorAgent",
         product_id: productId,
       });
-      setDemoResult({
+      setWorkflowResult({
         product_title: product?.title,
         reorder_quantity: product?.suggested_reorder_qty || 150,
         selected_supplier: res.selected_supplier || "NovaTech Industrial Solutions",
@@ -238,11 +238,11 @@ export default function ProductDetailPage() {
         </div>
       </div>
 
-      <AutonomousDemoModal
-        isOpen={isDemoModalOpen}
-        onClose={() => setIsDemoModalOpen(false)}
+      <AutonomousWorkflowModal
+        isOpen={isWorkflowModalOpen}
+        onClose={() => setIsWorkflowModalOpen(false)}
         isRunning={isProcuring}
-        result={demoResult}
+        result={workflowResult}
         error={procureError}
         onRerun={handleRunProcurement}
       />

@@ -25,5 +25,7 @@ data/raw/*
 data/processed/*
 !data/processed/.gitkeep
 *.log
+*.tsbuildinfo
+phase_summary.txt
 .DS_Store
 Thumbs.db

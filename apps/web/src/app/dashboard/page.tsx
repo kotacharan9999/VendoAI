@@ -34,6 +34,9 @@ import {
 import { AppShell } from "@/components/layout/AppShell";
 import { api } from "@/lib/api";
 import { formatINR, cn } from "@/lib/utils";
+import { MandiTicker } from "@/components/dashboard/MandiTicker";
+import { MarketShockSimulator } from "@/components/dashboard/MarketShockSimulator";
+import { RegionalLogisticsMap } from "@/components/logistics/RegionalLogisticsMap";
 
 export default function DashboardPage() {
   const [data, setData] = useState<any>(null);
@@ -90,24 +93,27 @@ export default function DashboardPage() {
 
   return (
     <AppShell>
-      <div className="space-y-8">
-        <div className="flex items-center justify-between">
+      <div className="space-y-6 sm:space-y-8">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
-            <h1 className="text-2xl font-bold tracking-tight text-slate-900">Procurement Intelligence Dashboard</h1>
-            <p className="text-sm text-slate-500 mt-1">
+            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900">Procurement Intelligence Dashboard</h1>
+            <p className="text-xs sm:text-sm text-slate-500 mt-1">
               Autonomous demand monitoring, margin protection, and multi-supplier negotiations.
             </p>
           </div>
           <button
             onClick={fetchDashboard}
-            className="flex items-center gap-1.5 rounded-lg border bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 shadow-xs"
+            className="self-start sm:self-auto flex items-center gap-1.5 rounded-lg border bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 shadow-xs"
           >
             <RefreshCw className="h-3.5 w-3.5 text-slate-400" />
             Refresh
           </button>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+        {/* Live Mandi Spot Price Ticker */}
+        <MandiTicker />
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
           <div className="rounded-xl border bg-card p-4 shadow-xs">
             <div className="flex items-center justify-between text-slate-500 text-xs">
               <span>{data.inventory_value.label}</span>
@@ -284,10 +290,10 @@ export default function DashboardPage() {
                 <p className="py-6 text-center text-xs text-slate-400">No open procurement opportunities at this time.</p>
               ) : (
                 data.top_opportunities.map((opp: any) => (
-                  <div key={opp.id} className="py-3 flex items-center justify-between text-xs">
+                  <div key={opp.id} className="py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs border-b last:border-b-0">
                     <div className="flex items-center gap-3">
                       <div className={cn(
-                        "h-2 w-2 rounded-full",
+                        "h-2.5 w-2.5 rounded-full shrink-0",
                         opp.urgency === "CRITICAL" ? "bg-red-500" : opp.urgency === "HIGH" ? "bg-amber-500" : "bg-blue-500"
                       )} />
                       <div>
@@ -298,14 +304,14 @@ export default function DashboardPage() {
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-4">
-                      <div className="text-right">
+                    <div className="flex items-center justify-between sm:justify-end gap-3 sm:gap-4 w-full sm:w-auto pt-1 sm:pt-0 border-t sm:border-t-0 border-slate-100">
+                      <div className="text-left sm:text-right">
                         <p className="font-semibold text-slate-900">{formatINR(opp.expected_total_cost)}</p>
                         <p className="text-emerald-600 text-[11px] font-medium">{opp.expected_margin}% margin</p>
                       </div>
                       <Link
                         href="/opportunities"
-                        className="rounded bg-blue-50 px-2.5 py-1 font-semibold text-blue-700 hover:bg-blue-100"
+                        className="rounded bg-blue-50 px-3 py-1.5 font-semibold text-blue-700 hover:bg-blue-100 shrink-0"
                       >
                         Review
                       </Link>
@@ -346,6 +352,12 @@ export default function DashboardPage() {
             </div>
           </div>
         </div>
+
+        {/* Market Shock Simulator */}
+        <MarketShockSimulator />
+
+        {/* Regional Freight & Logistics Map */}
+        <RegionalLogisticsMap />
       </div>
     </AppShell>
   );

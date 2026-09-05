@@ -41,5 +41,13 @@ class SettingsUpdate(BaseModel):
     max_negotiation_rounds: int | None = None
     auto_purchase_enabled: bool | None = None
     ai_provider: str | None = None
-    demo_mode: bool | None = None
     currency: str | None = None
+    regional_default_hub: str | None = None
+    ap_gstin_code: str | None = None
+    apmc_mandi_cess_percent: Decimal | None = None
+    local_freight_tariff_per_ton_km: Decimal | None = None
+    negotiation_aggressiveness: str | None = None
+    auto_counter_threshold: Decimal | None = None
+    enable_security_verification: bool | None = None
+    whatsapp_supplier_dispatch: bool | None = None
+    email_po_dispatch: bool | None = None

@@ -3,12 +3,14 @@
 import React, { useEffect, useState } from "react";
 import { HeartPulse, CheckCircle2, AlertTriangle, ShieldCheck, RefreshCw, BarChart2 } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
+import { AccessRestricted } from "@/components/auth/AccessRestricted";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
 export default function DataHealthPage() {
   const [report, setReport] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [userRole, setUserRole] = useState<string>("ADMIN");
 
   const fetchHealth = async () => {
     setLoading(true);
@@ -23,8 +25,40 @@ export default function DataHealthPage() {
   };
 
   useEffect(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const stored = localStorage.getItem("vendo_user");
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          setUserRole((parsed.role || "ADMIN").toUpperCase());
+        }
+      } catch (e) {}
+    }
     fetchHealth();
   }, []);
+
+  if (userRole !== "ADMIN") {
+    return (
+      <AccessRestricted
+        currentRole={userRole}
+        requiredRole="Chief Procurement Officer / Administrator"
+        pageName="Database Health & Integrity Engine"
+        allowedUsage={
+          userRole === "MANAGER"
+            ? [
+                "Procurement approvals & order signing",
+                "Vendor performance & risk monitoring",
+                "Spend analytics & margin compliance",
+              ]
+            : [
+                "Commodity sourcing & catalog browsing",
+                "Warehouse stock & reorder tracking",
+                "Purchase order drafting",
+              ]
+        }
+      />
+    );
+  }
 
   if (loading || !report) {
     return (

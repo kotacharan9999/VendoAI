@@ -17,6 +17,7 @@ from apps.api.schemas.product import (
     ProductCreate,
     ProductDetailResponse,
     ProductResponse,
+    ProductUpdate,
 )
 from apps.api.services.auth import get_current_user
 
@@ -137,12 +138,119 @@ async def create_product(
     inv = Inventory(
         organization_id=current_user.organization_id,
         product_id=product.id,
-        current_stock=0,
-        reorder_point=10,
+        current_stock=data.initial_stock or 0,
+        reorder_point=data.reorder_point or 10,
         safety_stock=5,
         suggested_reorder_qty=50,
     )
     db.add(inv)
     await db.commit()
 
-    return ProductResponse.model_validate(product)
+    stmt_reload = (
+        select(Product)
+        .options(selectinload(Product.images), selectinload(Product.inventory))
+        .where(Product.id == product.id)
+    )
+    res_reload = await db.execute(stmt_reload)
+    reloaded_product = res_reload.scalar_one()
+
+    resp = ProductResponse.model_validate(reloaded_product)
+    if reloaded_product.inventory:
+        resp.current_stock = reloaded_product.inventory.current_stock
+        resp.stockout_risk_level = reloaded_product.inventory.stockout_risk_level
+        resp.days_of_inventory = reloaded_product.inventory.days_of_inventory
+    return resp
+
+
+@router.put("/{product_id}", response_model=ProductResponse)
+async def update_product(
+    product_id: uuid.UUID,
+    data: ProductUpdate,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    stmt = (
+        select(Product)
+        .options(selectinload(Product.inventory))
+        .where(Product.id == product_id, Product.organization_id == current_user.organization_id)
+    )
+    res = await db.execute(stmt)
+    product = res.scalar_one_or_none()
+    if not product:
+        raise HTTPException(status_code=404, detail="Product not found")
+
+    if data.title is not None:
+        product.title = data.title
+    if data.description is not None:
+        product.description = data.description
+    if data.category is not None:
+        product.category = data.category
+    if data.sku is not None:
+        product.sku = data.sku
+    if data.selling_price is not None:
+        product.selling_price = data.selling_price
+    if data.cost_price is not None:
+        product.cost_price = data.cost_price
+    if data.currency is not None:
+        product.currency = data.currency
+
+    if product.inventory:
+        if data.current_stock is not None:
+            product.inventory.current_stock = data.current_stock
+        if data.reorder_point is not None:
+            product.inventory.reorder_point = data.reorder_point
+
+    await db.commit()
+
+    stmt_reload = (
+        select(Product)
+        .options(selectinload(Product.images), selectinload(Product.inventory))
+        .where(Product.id == product_id)
+    )
+    res_reload = await db.execute(stmt_reload)
+    reloaded_product = res_reload.scalar_one()
+
+    resp = ProductResponse.model_validate(reloaded_product)
+    if reloaded_product.inventory:
+        resp.current_stock = reloaded_product.inventory.current_stock
+        resp.stockout_risk_level = reloaded_product.inventory.stockout_risk_level
+        resp.days_of_inventory = reloaded_product.inventory.days_of_inventory
+    return resp
+
+
+@router.delete("/{product_id}")
+async def delete_product(
+    product_id: uuid.UUID,
+    force: bool = False,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    stmt = (
+        select(Product)
+        .options(selectinload(Product.inventory))
+        .where(Product.id == product_id, Product.organization_id == current_user.organization_id)
+    )
+    res = await db.execute(stmt)
+    product = res.scalar_one_or_none()
+    if not product:
+        raise HTTPException(status_code=404, detail="Product not found")
+
+    title = product.title
+
+    # Check for references in PurchaseOrderItems
+    from apps.api.models.procurement import PurchaseOrderItem
+    po_items_stmt = select(PurchaseOrderItem).where(PurchaseOrderItem.product_id == product_id)
+    po_items = (await db.execute(po_items_stmt)).scalars().all()
+    if po_items:
+        if not force:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Cannot delete '{title}' because it is linked to {len(po_items)} purchase order(s). Pass force=true to delete order references."
+            )
+        for poi in po_items:
+            await db.delete(poi)
+
+    await db.delete(product)
+    await db.commit()
+    return {"status": "deleted", "id": str(product_id), "title": title}
+

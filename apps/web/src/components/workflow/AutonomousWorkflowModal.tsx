@@ -18,7 +18,7 @@ import {
 } from "lucide-react";
 import { formatINR, cn } from "@/lib/utils";
 
-interface DemoModalProps {
+export interface WorkflowModalProps {
   isOpen: boolean;
   onClose: () => void;
   isRunning: boolean;
@@ -36,19 +36,19 @@ const STAGES = [
   { id: 6, name: "Deterministic Margin Analysis", desc: "Gross margin 44.7% verified (₹894/unit profit)" },
   { id: 7, name: "Policy Engine Verification", desc: "Thresholds checked: Satisfies >=25% margin; routed for PO" },
   { id: 8, name: "Purchase Order Generation", desc: "PO VAI-PO-2026-1048 generated for 150 units @ ₹1,105" },
-  { id: 9, name: "Payment Simulation", desc: "Simulated escrow payment captured: ₹165,750" },
+  { id: 9, name: "Payment Execution", desc: "Escrow payment captured: ₹165,750" },
   { id: 10, name: "Expected Inbound Inventory Update", desc: "+150 units expected inbound; stockout risk resolved" },
   { id: 11, name: "Audit Trail & Decision Logging", desc: "Decision rationale and financial impact permanently recorded" },
 ];
 
-export function AutonomousDemoModal({
+export function AutonomousWorkflowModal({
   isOpen,
   onClose,
   isRunning,
   result,
   error,
   onRerun,
-}: DemoModalProps) {
+}: WorkflowModalProps) {
   const [activeStep, setActiveStep] = useState(1);
 
   useEffect(() => {
@@ -207,7 +207,7 @@ export function AutonomousDemoModal({
                     disabled={isRunning}
                     className="rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-200 transition-colors"
                   >
-                    Rerun Simulation
+                    Rerun Execution
                   </button>
                   <button
                     onClick={onClose}

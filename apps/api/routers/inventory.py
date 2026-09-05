@@ -86,6 +86,9 @@ async def update_inventory(
     if not inv:
         raise HTTPException(status_code=404, detail="Inventory record not found")
 
+    old_stock = inv.current_stock
+    new_stock = data.current_stock if data.current_stock is not None else old_stock
+
     if data.current_stock is not None:
         inv.current_stock = data.current_stock
     if data.reserved_stock is not None:
@@ -99,6 +102,40 @@ async def update_inventory(
     if data.suggested_reorder_qty is not None:
         inv.suggested_reorder_qty = data.suggested_reorder_qty
 
+    # Recalculate risk level based on updated levels
+    if inv.current_stock <= inv.safety_stock:
+        inv.stockout_risk_level = "CRITICAL"
+    elif inv.current_stock <= inv.reorder_point:
+        inv.stockout_risk_level = "HIGH"
+    elif inv.current_stock <= int(inv.reorder_point * 1.5):
+        inv.stockout_risk_level = "MEDIUM"
+    else:
+        inv.stockout_risk_level = "HEALTHY"
+
+    # Log inventory movement if current stock changed
+    if data.current_stock is not None and data.current_stock != old_stock:
+        stock_diff = new_stock - old_stock
+        movement = InventoryMovement(
+            organization_id=current_user.organization_id,
+            product_id=inv.product_id,
+            reference_type="MANUAL_ADJUSTMENT",
+            reference_id=str(inv.id),
+            movement_type="ADJUSTMENT",
+            quantity=abs(stock_diff),
+            previous_stock=old_stock,
+            new_stock=new_stock,
+            reason=f"Manual stock adjustment: {old_stock} -> {new_stock} units by {current_user.email}",
+        )
+        db.add(movement)
+
     await db.commit()
-    await db.refresh(inv)
-    return inv
+
+    # Re-query with eager loading so the product relationship is properly loaded
+    # before Pydantic serializes the response (avoids async lazy-load error)
+    stmt_reload = (
+        select(Inventory)
+        .options(selectinload(Inventory.product).selectinload(Product.images))
+        .where(Inventory.id == inventory_id)
+    )
+    res_reload = await db.execute(stmt_reload)
+    return res_reload.scalar_one()

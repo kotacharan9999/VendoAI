@@ -54,7 +54,7 @@ export default function OpportunitiesPage() {
               <CheckCircle2 className="mx-auto h-8 w-8 text-emerald-500 mb-2" />
               <h3 className="text-sm font-semibold text-slate-900">All inventory levels optimized</h3>
               <p className="text-xs text-slate-500 mt-1">
-                No stockout triggers detected across current catalog coverage. Run the autonomous demo to simulate.
+                No stockout triggers detected across current catalog coverage. Initiate an autonomous procurement cycle to evaluate.
               </p>
             </div>
           ) : (

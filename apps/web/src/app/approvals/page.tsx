@@ -10,6 +10,7 @@ export default function ApprovalsPage() {
   const [approvals, setApprovals] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [processingId, setProcessingId] = useState<string | null>(null);
+  const [userRole, setUserRole] = useState<string>("MANAGER");
 
   const fetchApprovals = async () => {
     setLoading(true);
@@ -24,8 +25,18 @@ export default function ApprovalsPage() {
   };
 
   useEffect(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const stored = localStorage.getItem("vendo_user");
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          setUserRole((parsed.role || "MANAGER").toUpperCase());
+        }
+      } catch (e) {}
+    }
     fetchApprovals();
   }, []);
+
 
   const handleApprove = async (id: string) => {
     setProcessingId(id);
@@ -54,27 +65,39 @@ export default function ApprovalsPage() {
   return (
     <AppShell>
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
-            <h1 className="text-2xl font-bold tracking-tight text-slate-900">Managerial Approval Center</h1>
-            <p className="text-sm text-slate-500 mt-1">
+            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900">Managerial Approval Center</h1>
+            <p className="text-xs sm:text-sm text-slate-500 mt-1">
               Deterministic policy routing: Human authorization required for transactions exceeding threshold limits.
             </p>
           </div>
           <button
             onClick={fetchApprovals}
-            className="flex items-center gap-1.5 rounded-lg border bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
+            className="self-start sm:self-auto flex items-center gap-1.5 rounded-lg border bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 shadow-xs"
           >
             <RefreshCw className="h-3.5 w-3.5 text-slate-400" />
             Refresh
           </button>
         </div>
 
+        {userRole === "BUYER" && (
+          <div className="rounded-xl border border-blue-200 bg-blue-50/80 p-4 text-xs text-blue-900 flex items-start gap-3">
+            <AlertTriangle className="h-5 w-5 text-blue-600 shrink-0 mt-0.5" />
+            <div>
+              <p className="font-bold">Role Authority Notice: Buyer Workspace</p>
+              <p className="mt-0.5 text-blue-700">
+                You are currently viewing as <strong>Buyer</strong>. Procurement approval and sign-off authority is reserved for <strong>Managers</strong> and <strong>Admins</strong>. High-value purchase orders you draft appear here for managerial sign-off.
+              </p>
+            </div>
+          </div>
+        )}
+
         <div className="space-y-4">
           {loading ? (
             <p className="py-12 text-center text-xs text-slate-400">Loading approval queue...</p>
           ) : approvals.length === 0 ? (
-            <div className="rounded-xl border bg-card p-12 text-center">
+            <div className="rounded-xl border bg-card p-8 sm:p-12 text-center">
               <CheckCircle2 className="mx-auto h-8 w-8 text-emerald-500 mb-2" />
               <h3 className="text-sm font-semibold text-slate-900">No pending approvals</h3>
               <p className="text-xs text-slate-500 mt-1">
@@ -86,9 +109,9 @@ export default function ApprovalsPage() {
               const isPending = app.status === "PENDING";
               const isApproved = app.status === "APPROVED";
               return (
-                <div key={app.id} className="rounded-xl border bg-card p-5 shadow-xs space-y-4">
-                  <div className="flex items-center justify-between border-b pb-3">
-                    <div className="flex items-center gap-3">
+                <div key={app.id} className="rounded-xl border bg-card p-4 sm:p-5 shadow-xs space-y-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b pb-3">
+                    <div className="flex items-center gap-2.5">
                       <span
                         className={cn(
                           "rounded-md px-2.5 py-1 text-xs font-bold uppercase tracking-wider",
@@ -101,14 +124,14 @@ export default function ApprovalsPage() {
                       >
                         {app.status}
                       </span>
-                      <h2 className="text-base font-bold text-slate-900">{app.requested_action}</h2>
+                      <h2 className="text-sm sm:text-base font-bold text-slate-900">{app.requested_action}</h2>
                     </div>
                     <span className="text-xs text-slate-400 font-mono">
                       {new Date(app.created_at).toLocaleDateString()}
                     </span>
                   </div>
 
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
                     <div className="p-3 rounded-lg bg-slate-50 border">
                       <span className="text-slate-500 text-[11px]">Transaction Amount</span>
                       <p className="font-bold text-slate-900 text-sm mt-0.5">{formatINR(app.amount)}</p>
@@ -142,26 +165,34 @@ export default function ApprovalsPage() {
                   )}
 
                   {isPending && (
-                    <div className="flex items-center justify-end gap-3 pt-2">
-                      <button
-                        onClick={() => handleReject(app.id)}
-                        disabled={processingId === app.id}
-                        className="rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-xs font-semibold text-red-700 hover:bg-red-100 transition-colors disabled:opacity-50"
-                      >
-                        Reject Request
-                      </button>
-                      <button
-                        onClick={() => handleApprove(app.id)}
-                        disabled={processingId === app.id}
-                        className="flex items-center gap-1.5 rounded-lg bg-emerald-600 px-4 py-2 text-xs font-semibold text-white hover:bg-emerald-700 shadow-xs transition-colors disabled:opacity-50"
-                      >
-                        {processingId === app.id ? (
-                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                        ) : (
-                          <CheckCircle2 className="h-3.5 w-3.5" />
-                        )}
-                        Authorize & Execute PO
-                      </button>
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-2 sm:gap-3 pt-2">
+                      {userRole === "BUYER" ? (
+                        <span className="text-xs text-slate-500 italic bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5">
+                          Manager or Admin authorization required to approve or reject
+                        </span>
+                      ) : (
+                        <>
+                          <button
+                            onClick={() => handleReject(app.id)}
+                            disabled={processingId === app.id}
+                            className="rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-xs font-semibold text-red-700 hover:bg-red-100 transition-colors disabled:opacity-50 text-center"
+                          >
+                            Reject Request
+                          </button>
+                          <button
+                            onClick={() => handleApprove(app.id)}
+                            disabled={processingId === app.id}
+                            className="flex items-center justify-center gap-1.5 rounded-lg bg-emerald-600 px-4 py-2 text-xs font-semibold text-white hover:bg-emerald-700 shadow-xs transition-colors disabled:opacity-50 text-center"
+                          >
+                            {processingId === app.id ? (
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            ) : (
+                              <CheckCircle2 className="h-3.5 w-3.5" />
+                            )}
+                            Authorize & Execute PO
+                          </button>
+                        </>
+                      )}
                     </div>
                   )}
                 </div>

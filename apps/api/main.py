@@ -14,7 +14,6 @@ from apps.api.routers import (
     auth,
     dashboard,
     data_health,
-    demo,
     forecasts,
     inventory,
     negotiations,
@@ -23,6 +22,7 @@ from apps.api.routers import (
     products,
     purchase_orders,
     suppliers,
+    workflow,
 )
 from apps.api.routers import (
     settings as settings_router,
@@ -49,6 +49,7 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.CORS_ORIGINS if isinstance(settings.CORS_ORIGINS, list) else ["*"],
+    allow_origin_regex=r"^https?://(localhost|127\.0\.0\.1)(:\d+)?$",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -65,7 +66,7 @@ async def health_check():
 
 @app.get(f"{settings.API_V1_STR}/health", tags=["system"])
 async def api_health_check():
-    return {"status": "ok", "demo_mode": settings.DEMO_MODE, "ai_provider": settings.AI_PROVIDER}
+    return {"status": "ok", "ai_provider": settings.AI_PROVIDER}
 
 
 app.include_router(auth.router, prefix=settings.API_V1_STR)
@@ -83,5 +84,5 @@ app.include_router(agents.router, prefix=settings.API_V1_STR)
 app.include_router(activity.router, prefix=settings.API_V1_STR)
 app.include_router(notifications.router, prefix=settings.API_V1_STR)
 app.include_router(settings_router.router, prefix=settings.API_V1_STR)
-app.include_router(demo.router, prefix=settings.API_V1_STR)
+app.include_router(workflow.router, prefix=settings.API_V1_STR)
 app.include_router(data_health.router, prefix=settings.API_V1_STR)

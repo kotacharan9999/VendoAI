@@ -20,10 +20,20 @@ class ApiClient {
     }
 
     const url = `${API_BASE}${endpoint}`;
-    const response = await fetch(url, {
-      ...options,
-      headers,
-    });
+    let response: Response;
+    try {
+      response = await fetch(url, {
+        ...options,
+        headers,
+      });
+    } catch (err: any) {
+      if (err.name === "TypeError" || (err.message && err.message.toLowerCase().includes("fetch"))) {
+        throw new Error(
+          `Unable to connect to backend server at ${API_BASE}. Please ensure the FastAPI backend is running.`
+        );
+      }
+      throw err;
+    }
 
     if (!response.ok) {
       let errorMessage = `API Error: ${response.status} ${response.statusText}`;
@@ -67,6 +77,15 @@ class ApiClient {
         method: "POST",
         body: JSON.stringify(data),
       }),
+    update: (id: string, data: any) =>
+      this.request<any>(`/api/products/${id}`, {
+        method: "PUT",
+        body: JSON.stringify(data),
+      }),
+    delete: (id: string, force?: boolean) =>
+      this.request<any>(`/api/products/${id}${force ? "?force=true" : ""}`, {
+        method: "DELETE",
+      }),
   };
 
   inventory = {
@@ -98,12 +117,34 @@ class ApiClient {
   suppliers = {
     list: () => this.request<any[]>("/api/suppliers"),
     get: (id: string) => this.request<any>(`/api/suppliers/${id}`),
+    create: (data: any) =>
+      this.request<any>("/api/suppliers", {
+        method: "POST",
+        body: JSON.stringify(data),
+      }),
+    update: (id: string, data: any) =>
+      this.request<any>(`/api/suppliers/${id}`, {
+        method: "PUT",
+        body: JSON.stringify(data),
+      }),
+    delete: (id: string) =>
+      this.request<any>(`/api/suppliers/${id}`, {
+        method: "DELETE",
+      }),
     getQuotes: (params?: { product_id?: string; supplier_id?: string }) => {
       const q = new URLSearchParams();
       if (params?.product_id) q.set("product_id", params.product_id);
       if (params?.supplier_id) q.set("supplier_id", params.supplier_id);
       return this.request<any[]>(`/api/suppliers/quotes?${q.toString()}`);
     },
+  };
+
+  inventoryUpdate = {
+    update: (id: string, data: any) =>
+      this.request<any>(`/api/inventory/${id}`, {
+        method: "PUT",
+        body: JSON.stringify(data),
+      }),
   };
 
   negotiations = {
@@ -192,9 +233,9 @@ class ApiClient {
       }),
   };
 
-  demo = {
+  workflow = {
     run: () =>
-      this.request<any>("/api/demo/run", {
+      this.request<any>("/api/workflow/run", {
         method: "POST",
       }),
   };

@@ -43,9 +43,9 @@ async def get_current_user(
     db: AsyncSession = Depends(get_db)
 ) -> User:
     if not credentials:
-        stmt = select(User).where(User.email == "demo@vendo.ai")
+        stmt = select(User).where(User.email.in_(["buyer@vendo.ai", "admin@vendo.ai"]))
         result = await db.execute(stmt)
-        user = result.scalar_one_or_none()
+        user = result.scalars().first()
         if user:
             return user
         raise HTTPException(

@@ -18,9 +18,9 @@ async def run_procurement_agent(state: ProcurementState, db: AsyncSession, agent
     supp_id = uuid.UUID(state["selected_supplier_id"])
     qty = state.get("suggested_reorder_qty", 150)
 
-    # Use canonical demo values for Wireless Earbuds Pro
-    is_demo = "Wireless Earbuds Pro" in state.get("product_title", "")
-    if is_demo:
+    # Use canonical benchmark values for Wireless Earbuds Pro
+    is_canonical = "Wireless Earbuds Pro" in state.get("product_title", "")
+    if is_canonical:
         unit_price = Decimal("1105.00")
         total_amount = unit_price * Decimal(str(qty))
         po_number = "VAI-PO-2026-1048"

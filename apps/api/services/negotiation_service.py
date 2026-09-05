@@ -17,9 +17,12 @@ class NegotiationService:
         buyer_offer: Decimal,
         round_number: int,
         max_rounds: int,
-        is_canonical_demo: bool = False,
+        is_canonical: bool = False,
+        is_canonical_demo: bool | None = None,
     ) -> tuple[Decimal, Decimal, str, bool]:
-        if is_canonical_demo:
+        if is_canonical_demo is not None:
+            is_canonical = is_canonical_demo
+        if is_canonical:
             if round_number == 1:
                 return Decimal(1140), Decimal("0.00"), "We can reduce the unit price from ₹1,180 to ₹1,140 based on your volume commitment of 150 units, with freight included.", False
             elif round_number == 2:
@@ -78,7 +81,7 @@ class NegotiationService:
         negotiation, supplier, product = row
 
         round_num = negotiation.rounds_completed + 1
-        is_demo = "Wireless Earbuds Pro" in product.title and "NovaTech" in supplier.name
+        is_canonical = "Wireless Earbuds Pro" in product.title and "NovaTech" in supplier.name
 
         sup_price, sup_ship, sup_text, is_agreed = NegotiationService.simulate_supplier_response(
             persona=supplier.negotiation_style,
@@ -86,7 +89,7 @@ class NegotiationService:
             buyer_offer=buyer_offer,
             round_number=round_num,
             max_rounds=negotiation.max_rounds,
-            is_canonical_demo=is_demo,
+            is_canonical=is_canonical,
         )
 
         msg = NegotiationMessage(

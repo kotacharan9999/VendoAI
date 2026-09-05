@@ -30,7 +30,6 @@ async def get_settings(
         "organization_name": org.name if org else "Vendo AI Org",
         "currency": org.currency if org else "INR",
         "ai_provider": settings.AI_PROVIDER,
-        "demo_mode": settings.DEMO_MODE,
         "minimum_margin": rule_dict.get("minimum_margin", Decimal("0.25")),
         "target_margin": rule_dict.get("target_margin", Decimal("0.35")),
         "auto_approval_limit": rule_dict.get("auto_approval_limit", Decimal(50000)),
@@ -41,6 +40,15 @@ async def get_settings(
         "minimum_quotes": rule_dict.get("minimum_quotes", 2),
         "max_negotiation_rounds": rule_dict.get("max_negotiation_rounds", 4),
         "auto_purchase_enabled": rule_dict.get("auto_purchase_enabled", False),
+        "regional_default_hub": rule_dict.get("regional_default_hub", "Kurnool Central Agro-Terminal (NH-44)"),
+        "ap_gstin_code": rule_dict.get("ap_gstin_code", "37"),
+        "apmc_mandi_cess_percent": rule_dict.get("apmc_mandi_cess_percent", Decimal("1.00")),
+        "local_freight_tariff_per_ton_km": rule_dict.get("local_freight_tariff_per_ton_km", Decimal("4.50")),
+        "negotiation_aggressiveness": rule_dict.get("negotiation_aggressiveness", "BALANCED"),
+        "auto_counter_threshold": rule_dict.get("auto_counter_threshold", Decimal("0.05")),
+        "enable_security_verification": rule_dict.get("enable_security_verification", True),
+        "whatsapp_supplier_dispatch": rule_dict.get("whatsapp_supplier_dispatch", True),
+        "email_po_dispatch": rule_dict.get("email_po_dispatch", True),
     }
 
 
@@ -52,7 +60,7 @@ async def update_settings(
 ):
     updates = data.model_dump(exclude_unset=True)
     for key, val in updates.items():
-        if key in ["organization_name", "currency", "ai_provider", "demo_mode"]:
+        if key in ["organization_name", "currency", "ai_provider"]:
             continue
         stmt = select(BusinessRule).where(
             BusinessRule.organization_id == current_user.organization_id, BusinessRule.rule_key == key

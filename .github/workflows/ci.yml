@@ -93,9 +93,12 @@ jobs:
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "22"
           cache: "npm"
           cache-dependency-path: apps/web/package-lock.json
+
+      - name: Upgrade npm
+        run: npm install -g npm@latest
 
       - name: Install dependencies
         run: |
@@ -155,7 +158,10 @@ jobs:
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "22"
+
+      - name: Upgrade npm
+        run: npm install -g npm@latest
 
       - name: Install uv
         run: pip install uv
@@ -197,13 +203,13 @@ jobs:
       - name: Test health endpoint
         run: curl -f http://localhost:8000/health
 
-      - name: Test demo endpoint
+      - name: Test autonomous workflow endpoint
         run: |
           LOGIN_RES=$(curl -s -X POST http://localhost:8000/api/auth/login \
             -H "Content-Type: application/json" \
             -d '{"email":"demo@vendo.ai","password":"password123"}')
           TOKEN=$(echo $LOGIN_RES | grep -o '"access_token":"[^"]*' | cut -d'"' -f4)
-          curl -f -s -X POST http://localhost:8000/api/demo/run \
+          curl -f -s -X POST http://localhost:8000/api/workflow/run \
             -H "Content-Type: application/json" \
             -H "Authorization: Bearer $TOKEN"
 

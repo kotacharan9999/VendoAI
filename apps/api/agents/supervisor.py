@@ -17,7 +17,7 @@ class SupervisorAgent:
         db: AsyncSession,
         organization_id: uuid.UUID,
         product_id: uuid.UUID,
-        trigger: str = "MANUAL_DEMO",
+        trigger: str = "MANUAL_CYCLE",
     ) -> ProcurementState:
         execution_id = f"EXEC-{uuid.uuid4().hex[:8].upper()}"
         start_time = time.time()

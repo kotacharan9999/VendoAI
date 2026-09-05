@@ -17,7 +17,6 @@ class Settings(BaseSettings):
     APP_PORT: int = 8000
     SECRET_KEY: str = "vendo-ai-super-secret-key-change-in-production-min-32-chars-long"
     API_V1_STR: str = "/api"
-    DEMO_MODE: bool = True
 
     DATABASE_URL: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/vendo_ai"
     DATABASE_URL_SYNC: str = "postgresql://postgres:postgres@localhost:5432/vendo_ai"
@@ -34,8 +33,10 @@ class Settings(BaseSettings):
 
     CORS_ORIGINS: list[str] | str = [
         "http://localhost:3000",
+        "http://localhost:3001",
         "http://localhost:8000",
         "http://127.0.0.1:3000",
+        "http://127.0.0.1:3001",
         "http://127.0.0.1:8000",
     ]
 

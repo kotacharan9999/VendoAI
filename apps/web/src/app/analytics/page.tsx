@@ -17,6 +17,7 @@ import {
 } from "recharts";
 import { BarChart3, TrendingUp, Sparkles, Clock, CheckCircle2, Building2, RefreshCw } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
+import { AccessRestricted } from "@/components/auth/AccessRestricted";
 import { api } from "@/lib/api";
 import { formatINR } from "@/lib/utils";
 
@@ -25,6 +26,7 @@ const COLORS = ["#3b82f6", "#10b981", "#f59e0b", "#8b5cf6", "#ec4899"];
 export default function AnalyticsPage() {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [userRole, setUserRole] = useState<string>("ADMIN");
 
   const fetchAnalytics = async () => {
     setLoading(true);
@@ -39,8 +41,33 @@ export default function AnalyticsPage() {
   };
 
   useEffect(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const stored = localStorage.getItem("vendo_user");
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          setUserRole((parsed.role || "ADMIN").toUpperCase());
+        }
+      } catch (e) {}
+    }
     fetchAnalytics();
   }, []);
+
+  if (userRole === "BUYER") {
+    return (
+      <AccessRestricted
+        currentRole="BUYER"
+        requiredRole="Manager or Administrator"
+        pageName="Spend Analytics & Financial Intelligence"
+        allowedUsage={[
+          "Sourcing agricultural and industrial commodities",
+          "Monitoring stock and daily sales velocities",
+          "Generating draft purchase orders",
+          "Tracking supplier quotes and deliveries",
+        ]}
+      />
+    );
+  }
 
   if (loading || !data) {
     return (
