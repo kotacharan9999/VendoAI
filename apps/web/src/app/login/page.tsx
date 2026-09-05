@@ -107,7 +107,7 @@ export default function LoginPage() {
       ) {
         const demoInfo = validDemoUsers[emailLower];
         const mockUser = {
-          access_token: "demo-session-token-" + Date.now(),
+          access_token: "",
           user_id: "22222222-2222-2222-2222-222222222222",
           organization_id: "11111111-1111-1111-1111-111111111111",
           email: emailLower,
@@ -117,7 +117,8 @@ export default function LoginPage() {
           buyer_zone: buyerZone,
         };
         if (typeof window !== "undefined") {
-          localStorage.setItem("vendo_token", mockUser.access_token);
+          // Clear any stale token so backend falls through to demo mode
+          localStorage.removeItem("vendo_token");
           localStorage.setItem("vendo_user", JSON.stringify(mockUser));
           window.dispatchEvent(new Event("vendo-auth-change"));
         }

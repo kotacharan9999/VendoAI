@@ -43,14 +43,15 @@ async def get_current_user(
     db: AsyncSession = Depends(get_db)
 ) -> User:
     if not credentials:
-        try:
-            stmt = select(User).where(User.email.in_(["buyer@vendo.ai", "admin@vendo.ai"]))
-            result = await db.execute(stmt)
-            user = result.scalars().first()
-            if user:
-                return user
-        except Exception:
-            pass
+        if db is not None:
+            try:
+                stmt = select(User).where(User.email.in_(["buyer@vendo.ai", "admin@vendo.ai"]))
+                result = await db.execute(stmt)
+                user = result.scalars().first()
+                if user:
+                    return user
+            except Exception:
+                pass
         return User(
             id=uuid.UUID("22222222-2222-2222-2222-222222222222"),
             email="demo@vendo.ai",
@@ -85,12 +86,13 @@ async def get_current_user(
     }
 
     user = None
-    try:
-        stmt = select(User).where(User.id == user_id, User.is_active.is_(True))
-        result = await db.execute(stmt)
-        user = result.scalar_one_or_none()
-    except Exception:
-        pass
+    if db is not None:
+        try:
+            stmt = select(User).where(User.id == user_id, User.is_active.is_(True))
+            result = await db.execute(stmt)
+            user = result.scalar_one_or_none()
+        except Exception:
+            pass
 
     if user is None:
         # Return a synthetic User for demo accounts so the dashboard works

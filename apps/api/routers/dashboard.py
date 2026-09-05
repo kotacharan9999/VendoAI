@@ -43,79 +43,80 @@ async def get_dashboard(
     top_opps: list[OpportunityResponse] = []
     recent_acts: list[AgentEventResponse] = []
 
-    try:
-        stmt_inv = (
-            select(func.sum(Inventory.current_stock * Product.cost_price))
-            .join(Product, Inventory.product_id == Product.id)
-            .where(Inventory.organization_id == org_id)
-        )
-        inv_val_res = (await db.execute(stmt_inv)).scalar() or inv_val_res
-
-        stmt_risk = select(func.count(Inventory.id)).where(
-            Inventory.organization_id == org_id,
-            Inventory.stockout_risk_level.in_(["CRITICAL", "HIGH"]),
-        )
-        risk_count = (await db.execute(stmt_risk)).scalar() or risk_count
-
-        stmt_spend = select(func.sum(PurchaseOrder.total_amount)).where(
-            PurchaseOrder.organization_id == org_id,
-            PurchaseOrder.status.in_(["CONFIRMED", "APPROVED", "RECEIVED"]),
-        )
-        spend_val = (await db.execute(stmt_spend)).scalar() or spend_val
-
-        stmt_savings = select(func.sum(Negotiation.expected_savings)).where(
-            Negotiation.organization_id == org_id,
-            Negotiation.status == "COMPLETED",
-        )
-        savings_val = (await db.execute(stmt_savings)).scalar() or savings_val
-
-        stmt_margin = select(func.avg(((Product.selling_price - Product.cost_price) / Product.selling_price) * 100)).where(
-            Product.organization_id == org_id,
-            Product.selling_price > 0,
-        )
-        avg_margin_val = (await db.execute(stmt_margin)).scalar() or avg_margin_val
-
-        stmt_neg = select(func.count(Negotiation.id)).where(
-            Negotiation.organization_id == org_id,
-            Negotiation.status == "IN_PROGRESS",
-        )
-        active_neg_count = (await db.execute(stmt_neg)).scalar() or active_neg_count
-
-        stmt_app = select(func.count(Approval.id)).where(
-            Approval.organization_id == org_id,
-            Approval.status == "PENDING",
-        )
-        pending_app_count = (await db.execute(stmt_app)).scalar() or pending_app_count
-
-        stmt_supp = select(func.avg(Supplier.reliability_score)).where(
-            Supplier.organization_id == org_id,
-            Supplier.is_active.is_(True),
-        )
-        avg_supp_rel = (await db.execute(stmt_supp)).scalar() or avg_supp_rel
-
-        stmt_opps = (
-            select(ProcurementOpportunity)
-            .options(
-                selectinload(ProcurementOpportunity.product).selectinload(Product.images),
-                selectinload(ProcurementOpportunity.recommended_supplier),
+    if db is not None:
+        try:
+            stmt_inv = (
+                select(func.sum(Inventory.current_stock * Product.cost_price))
+                .join(Product, Inventory.product_id == Product.id)
+                .where(Inventory.organization_id == org_id)
             )
-            .where(ProcurementOpportunity.organization_id == org_id)
-            .order_by(ProcurementOpportunity.created_at.desc())
-            .limit(5)
-        )
-        opps = (await db.execute(stmt_opps)).scalars().all()
-        top_opps = [OpportunityResponse.model_validate(o) for o in opps]
+            inv_val_res = (await db.execute(stmt_inv)).scalar() or inv_val_res
 
-        stmt_act = (
-            select(AgentEvent)
-            .where(AgentEvent.organization_id == org_id)
-            .order_by(AgentEvent.timestamp.desc())
-            .limit(8)
-        )
-        acts = (await db.execute(stmt_act)).scalars().all()
-        recent_acts = [AgentEventResponse.model_validate(a) for a in acts]
-    except Exception:
-        pass
+            stmt_risk = select(func.count(Inventory.id)).where(
+                Inventory.organization_id == org_id,
+                Inventory.stockout_risk_level.in_(["CRITICAL", "HIGH"]),
+            )
+            risk_count = (await db.execute(stmt_risk)).scalar() or risk_count
+
+            stmt_spend = select(func.sum(PurchaseOrder.total_amount)).where(
+                PurchaseOrder.organization_id == org_id,
+                PurchaseOrder.status.in_(["CONFIRMED", "APPROVED", "RECEIVED"]),
+            )
+            spend_val = (await db.execute(stmt_spend)).scalar() or spend_val
+
+            stmt_savings = select(func.sum(Negotiation.expected_savings)).where(
+                Negotiation.organization_id == org_id,
+                Negotiation.status == "COMPLETED",
+            )
+            savings_val = (await db.execute(stmt_savings)).scalar() or savings_val
+
+            stmt_margin = select(func.avg(((Product.selling_price - Product.cost_price) / Product.selling_price) * 100)).where(
+                Product.organization_id == org_id,
+                Product.selling_price > 0,
+            )
+            avg_margin_val = (await db.execute(stmt_margin)).scalar() or avg_margin_val
+
+            stmt_neg = select(func.count(Negotiation.id)).where(
+                Negotiation.organization_id == org_id,
+                Negotiation.status == "IN_PROGRESS",
+            )
+            active_neg_count = (await db.execute(stmt_neg)).scalar() or active_neg_count
+
+            stmt_app = select(func.count(Approval.id)).where(
+                Approval.organization_id == org_id,
+                Approval.status == "PENDING",
+            )
+            pending_app_count = (await db.execute(stmt_app)).scalar() or pending_app_count
+
+            stmt_supp = select(func.avg(Supplier.reliability_score)).where(
+                Supplier.organization_id == org_id,
+                Supplier.is_active.is_(True),
+            )
+            avg_supp_rel = (await db.execute(stmt_supp)).scalar() or avg_supp_rel
+
+            stmt_opps = (
+                select(ProcurementOpportunity)
+                .options(
+                    selectinload(ProcurementOpportunity.product).selectinload(Product.images),
+                    selectinload(ProcurementOpportunity.recommended_supplier),
+                )
+                .where(ProcurementOpportunity.organization_id == org_id)
+                .order_by(ProcurementOpportunity.created_at.desc())
+                .limit(5)
+            )
+            opps = (await db.execute(stmt_opps)).scalars().all()
+            top_opps = [OpportunityResponse.model_validate(o) for o in opps]
+
+            stmt_act = (
+                select(AgentEvent)
+                .where(AgentEvent.organization_id == org_id)
+                .order_by(AgentEvent.timestamp.desc())
+                .limit(8)
+            )
+            acts = (await db.execute(stmt_act)).scalars().all()
+            recent_acts = [AgentEventResponse.model_validate(a) for a in acts]
+        except Exception:
+            pass
 
     spend_trend = [
         {"month": "Apr", "spend": 120000, "budget": 1500000},

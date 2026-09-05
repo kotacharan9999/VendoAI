@@ -14,12 +14,13 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 @router.post("/login", response_model=Token)
 async def login(credentials: UserLogin, db: AsyncSession = Depends(get_db)):
     user = None
-    try:
-        stmt = select(User).where(User.email == credentials.email, User.is_active.is_(True))
-        result = await db.execute(stmt)
-        user = result.scalar_one_or_none()
-    except Exception:
-        pass
+    if db is not None:
+        try:
+            stmt = select(User).where(User.email == credentials.email, User.is_active.is_(True))
+            result = await db.execute(stmt)
+            user = result.scalar_one_or_none()
+        except Exception:
+            pass
 
     if user and verify_password(credentials.password, user.hashed_password):
         access_token = create_access_token(

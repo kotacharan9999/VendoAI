@@ -42,13 +42,19 @@ SyncSessionLocal = sessionmaker(
 )
 
 
-async def get_db() -> AsyncGenerator[AsyncSession, None]:
-    async with AsyncSessionLocal() as session:
-        try:
-            yield session
-            await session.commit()
-        except Exception:
-            await session.rollback()
-            raise
-        finally:
-            await session.close()
+async def get_db() -> AsyncGenerator[AsyncSession | None, None]:
+    try:
+        async with AsyncSessionLocal() as session:
+            try:
+                yield session
+                await session.commit()
+            except Exception:
+                await session.rollback()
+                raise
+            finally:
+                await session.close()
+    except Exception:
+        # Database is unreachable (cold start, no DB configured, etc.)
+        # Yield None so endpoints can fall back to demo data
+        yield None
+
