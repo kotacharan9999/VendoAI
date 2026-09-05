@@ -32,7 +32,7 @@
   "framework": "nextjs",
   "regions": ["iad1"],
   "env": {
-    "NEXT_PUBLIC_API_URL": "@vendo_ai_api_url"
+    "NEXT_PUBLIC_API_URL": "https://vendo-ai-backend.onrender.com"
   }
 }
 ```
